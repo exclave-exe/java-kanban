@@ -1,24 +1,18 @@
 package model;
 
 public class Subtask extends Task {
+    private int parentId;
 
-    private Epic parent;
-
-    public Subtask(Epic parent, String name, String description, Status status) {
-        super(name, description, status);
-        this.parent = parent;
+    public Subtask(int id, Epic parent, String name, String description, Status status) {
+        super(id, name, description, status);
+        this.parentId = parent.getId();
     }
 
-    public Epic getParent() {
-        return parent;
+    public int getParentId() {
+        return parentId;
     }
 
-    @Override
-    public void setStatus(Status status) {
-        this.status = status;
-        parent.updateStatus();
-    }
-
+    // Переопределение.
     @Override
     public String toString() {
         return "Subtask{" +
@@ -26,7 +20,7 @@ public class Subtask extends Task {
                 ", name='" + name + '\'' +
                 ", description='" + description.length() + '\'' +
                 ", status=" + status +
-                ",\nparent=" + parent.getId() +
+                ",\nparentId=" + parentId +
                 '}';
     }
 }

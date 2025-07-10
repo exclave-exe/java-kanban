@@ -9,13 +9,14 @@ public class Task {
     protected String description;
     protected Status status;
 
-    public Task(String name, String description, Status status) {
+    public Task(int id, String name, String description, Status status) {
+        this.id = id;
         this.name = name;
         this.description = description;
         this.status = status;
-        this.id = TaskManager.totalId++;
     }
 
+    // Общие Getters.
     public int getId() {
         return id;
     }
@@ -24,16 +25,17 @@ public class Task {
         return status;
     }
 
+    // Общие Setters.
     public void setStatus(Status status) {
         this.status = status;
     }
 
-    public void updateTask(String name, String description, Status status) {
+    public void setDetails(String name, String description) {
         this.name = name;
         this.description = description;
-        this.status = status;
     }
 
+    // Переопределение.
     @Override
     public String toString() {
         return "Task{" +

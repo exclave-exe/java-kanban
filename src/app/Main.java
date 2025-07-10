@@ -1,67 +1,85 @@
 package app;
 
-import model.Task;
-import model.Epic;
-import model.Subtask;
-import model.Status;
+import model.*;
 import todoManager.TaskManager;
 
 public class Main {
-
     public static void main(String[] args) {
         TaskManager manager = new TaskManager();
 
-        // Создание обычных Tasks
-        Task task1 = manager.createTask("Купить продукты", "Купить хлеб, молоко", Status.NEW);
-        Task task2 = manager.createTask("Погладить кота", "Обязательно!", Status.NEW);
+        // --- Создание Task ---
+        Task task1 = manager.createTask("Сходить в магазин", "Купить продукты", Status.NEW);
+        Task task2 = manager.createTask("Выбросить мусор", "Пакет у двери", Status.NEW);
 
-        // Создание Epic и Subtasks
-        Epic epic1 = manager.createEpic("Сделать ремонт", "Ремонт в ванной комнате");
-        Subtask sub1 = manager.createSubtask(epic1, "Купить плитку", "Керама Марацци", Status.NEW);
-        Subtask sub2 = manager.createSubtask(epic1, "Вызвать мастера", "На субботу", Status.NEW);
+        // --- Создание Epic и Subtasks ---
+        Epic epic1 = manager.createEpic("Переезд", "Переезд в новую квартиру");
 
-        // Печать всех задач
-        System.out.println("\n== ВСЕ TASKS ==");
+        Subtask subtask1 = manager.createSubtask(epic1, "Собрать вещи", "Упаковать в коробки", Status.NEW);
+        Subtask subtask2 = manager.createSubtask(epic1, "Вызвать такси", "На 18:00", Status.NEW);
+        Subtask subtask3 = manager.createSubtask(epic1, "Загрузить в машину", "Помощь друга", Status.NEW);
+
+        // --- Просмотр всех объектов ---
+        System.out.println("\n--- Все задачи ---");
         manager.printAllTasks();
 
-        System.out.println("\n== ВСЕ EPICS ==");
+        System.out.println("\n--- Все эпики ---");
         manager.printAllEpics();
 
-        System.out.println("\n== ВСЕ SUBTASKS ==");
+        System.out.println("\n--- Все подзадачи ---");
         manager.printAllSubtasks();
 
-        // Проверка методов обновления:
-        System.out.println("\n== ОБНОВЛЕНИЕ SUBTASK ==");
-        epic1.updateSubtask(sub1.getId(), "Купить плитку и клей", "Добавить клей", Status.IN_PROGRESS);
-        System.out.println("Epic после обновления subtask:\n" + epic1);
+        // --- Получение по ID ---
+        System.out.println("\n--- Получение Tasks по ID ---");
+        System.out.println(manager.getTask(task1.getId()));
+        System.out.println(manager.getTask(task2.getId()));
 
-        System.out.println("\n== ОБНОВЛЕНИЕ TASK ==");
-        task1.updateTask("Купить продукты и напитки", "Добавить сок", Status.DONE);
-        System.out.println("Task после обновления:\n" + task1);
+        System.out.println("\n--- Получение Epic по ID ---");
+        System.out.println(manager.getEpic(epic1.getId()));
 
-        System.out.println("\n== ОБНОВЛЕНИЕ EPIC ==");
-        epic1.updateEpic("Ремонт всей квартиры", "Пока только ванна и кухня");
-        System.out.println("Epic после обновления:\n" + epic1);
+        System.out.println("\n--- Получение Subtasks по ID ---");
+        System.out.println(manager.getSubtask(subtask1.getId()));
+        System.out.println(manager.getSubtask(subtask2.getId()));
+        System.out.println(manager.getSubtask(subtask3.getId()));
 
-        // Проверка методов Удаления
-        System.out.println("\n== УДАЛЕНИЕ TASK ==");
+        // --- Обновление статуса ---
+        manager.updateStatus(task1, Status.DONE);
+        manager.updateStatus(subtask1, Status.IN_PROGRESS);
+        manager.updateStatus(subtask2, Status.DONE);
+        manager.updateStatus(subtask3, Status.DONE);
+
+        System.out.println("\n--- Просмотр после обновления статусов ---");
+        System.out.println(manager.getTask(task1.getId()));
+        System.out.println(manager.getEpic(epic1.getId()));
+        System.out.println(manager.getSubtask(subtask1.getId()));
+        System.out.println(manager.getSubtask(subtask2.getId()));
+        System.out.println(manager.getSubtask(subtask3.getId()));
+
+        // --- Обновление имени и описания ---
+        manager.update(task2, "Выбросить мусор", "Сделать это после магазина");
+        manager.update(epic1, "Переезд в новый дом", "Другая квартира");
+        manager.update(subtask1, "Сложить одежду", "Положить в чемодан");
+
+        System.out.println("\n--- Просмотр после обновления описания ---");
+        System.out.println(manager.getTask(task2.getId()));
+        System.out.println(manager.getEpic(epic1.getId()));
+        System.out.println(manager.getSubtask(subtask1.getId()));
+
+        // --- Удаление объектов по ID ---
         manager.deleteTask(task2.getId());
+        manager.deleteSubtask(subtask1.getId());
+
+        System.out.println("\n--- После удаления ---");
         manager.printAllTasks();
-
-        System.out.println("\n== УДАЛЕНИЕ SUBTASK ==");
-        manager.deleteSubtask(sub2.getId());
-        manager.printAllSubtasks();
-        System.out.println("Epic после удаления Subtask:\n" + epic1);
-
-        // Удаление Epic (и всех его Subtasks)
-        System.out.println("\n== УДАЛЕНИЕ EPIC ==");
-        manager.deleteEpic(epic1.getId());
         manager.printAllEpics();
         manager.printAllSubtasks();
 
-        // Очистка всех Task
-        System.out.println("\n== ПОЛНАЯ ОЧИСТКА ВСЕХ TASK ==");
+        // --- Очистка всех задач ---
         manager.deleteAllTasks();
+        manager.deleteAllEpics();
+
+        System.out.println("\n--- После полной очистки ---");
         manager.printAllTasks();
+        manager.printAllEpics();
+        manager.printAllSubtasks();
     }
 }
