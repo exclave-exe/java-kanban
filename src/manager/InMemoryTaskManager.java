@@ -1,4 +1,4 @@
-package todoManager;
+package manager;
 
 import model.Epic;
 import model.Status;
@@ -8,24 +8,28 @@ import model.Task;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class TaskManager {
+public class InMemoryTaskManager implements TaskManager {
     private static int totalId = 1;
     private HashMap<Integer, Task> allTasks;
     private HashMap<Integer, Epic> allEpics;
     private HashMap<Integer, Subtask> allSubtasks;
+    private InMemoryHistoryManager inMemoryHistoryManager;
 
-    public TaskManager() {
+    public InMemoryTaskManager() {
         allTasks = new HashMap<>();
         allEpics = new HashMap<>();
         allSubtasks = new HashMap<>();
+        inMemoryHistoryManager = new InMemoryHistoryManager();
     }
 
     // Метод генерации неповторяющегося ID.
-    private int generateTotalId() {
+    @Override
+    public int generateTotalId() {
         return totalId++;
     }
 
     // Методы создания объектов.
+    @Override
     public Task createTask(String name, String description, Status status) {
         int id = generateTotalId();
         Task task = new Task(id, name, description, status);
@@ -34,6 +38,7 @@ public class TaskManager {
         return task;
     }
 
+    @Override
     public Epic createEpic(String name, String description) {
         int id = generateTotalId();
         Epic epic = new Epic(id, name, description);
@@ -42,6 +47,7 @@ public class TaskManager {
         return epic;
     }
 
+    @Override
     public Subtask createSubtask(Epic parent, String name, String description, Status status) {
         int id = generateTotalId();
         Subtask subtask = new Subtask(id, parent, name, description, status);
@@ -52,47 +58,57 @@ public class TaskManager {
     }
 
     // Методы просмотра HashMap.
+    @Override
     public void printAllTasks() {
         System.out.println(allTasks.values());
     }
 
+    @Override
     public void printAllEpics() {
         System.out.println(allEpics.values());
     }
 
+    @Override
     public void printAllSubtasks() {
         System.out.println(allSubtasks.values());
     }
 
     // Методы получения по ID из HashMap.
+    @Override
     public Task getTask(int id) {
         if (allTasks.get(id) == null) {
             System.out.println("Task с таким id не существует.");
             return null;
         } else {
+            inMemoryHistoryManager.add(allTasks.get(id));
             return allTasks.get(id);
         }
     }
 
+    @Override
     public Epic getEpic(int id) {
         if (allEpics.get(id) == null) {
             System.out.println("Epic с таким id не существует.");
             return null;
         } else {
+            inMemoryHistoryManager.add(allEpics.get(id));;
             return allEpics.get(id);
         }
     }
 
+    @Override
     public Subtask getSubtask(int id) {
         if (allSubtasks.get(id) == null) {
             System.out.println("Subtask с таким id не существует.");
             return null;
         } else {
+            inMemoryHistoryManager.add(allSubtasks.get(id));;
             return allSubtasks.get(id);
         }
     }
 
     // Методы удаления по ID из HashMap.
+    @Override
     public void deleteTask(int id) {
         if (allTasks.get(id) == null) {
             System.out.println("Ошибка удаления. Task с таким id не существует.");
@@ -102,6 +118,7 @@ public class TaskManager {
         System.out.println("Task успешно удалён!");
     }
 
+    @Override
     public void deleteEpic(int id) {
         if (allEpics.get(id) == null) {
             System.out.println("Ошибка удаления. Epic с таким id не существует.");
@@ -121,6 +138,7 @@ public class TaskManager {
         System.out.println("Epic и его Subtask(s) успешно удалены!");
     }
 
+    @Override
     public void deleteSubtask(int id) {
         if (allSubtasks.get(id) == null) {
             System.out.println("Ошибка удаления. Subtask с таким id не существует.");
@@ -134,40 +152,54 @@ public class TaskManager {
     }
 
     // Методы очищения HashMap.
+    @Override
     public void deleteAllTasks() {
         allTasks.clear();
     }
 
+    @Override
     public void deleteAllEpics() {
         allEpics.clear();
         allSubtasks.clear();
     }
 
+    @Override
     public void deleteAllSubtasks() {
         allSubtasks.clear();
     }
 
     // Методы обновления статуса.
+    @Override
     public void updateStatus(Task task, Status status) {
         task.setStatus(status);
     }
 
+    @Override
     public void updateStatus(Subtask subtask, Status status) {
         subtask.setStatus(status);
         updateStatus(allEpics.get(subtask.getParentId()));
     }
 
     // Методы обновления name и description.
+    @Override
     public void update(Task task, String name, String description) {
         task.setDetails(name,description);
     }
 
+    @Override
     public void update(Epic epic, String name, String description) {
         epic.setDetails(name,description);
     }
 
+    @Override
     public void update(Subtask subtask, String name, String description) {
         subtask.setDetails(name,description);
+    }
+
+    public void getHistory() {
+        for (Task anyTask : inMemoryHistoryManager.getHistory()) {
+            System.out.println(anyTask);
+        }
     }
 
     // Отдельный приватный метод для автоматического обновления статуса Epic в течении кода.

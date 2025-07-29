@@ -13,6 +13,9 @@ public class Epic extends Task {
 
     // Методы добавления и удаления Subtasks.
     public void addSubtask(int subtaskId){
+        if (this.id == subtaskId) {
+            throw new IllegalArgumentException("Epic не может содержать самого себя в виде подзадачи");
+        }
         subtasksId.add(subtaskId);
     }
 
@@ -27,15 +30,6 @@ public class Epic extends Task {
 
     // Переопределения.
     @Override
-    public boolean equals(Object obj) {
-        if (this == obj) return true;
-        if (obj == null) return false;
-        if (this.getClass() != obj.getClass()) return false;
-        Epic epic = (Epic) obj;
-        return Objects.equals(id, epic.id);
-    }
-
-    @Override
     public String toString() {
         return "Epic{" +
                 "id=" + id +
@@ -44,5 +38,18 @@ public class Epic extends Task {
                 ", status=" + status +
                 ",\nsubtasksId=" + subtasksId +
                 '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Epic epic = (Epic) o;
+        return id == epic.id &&
+                name.equals(epic.name) &&
+                description.equals(epic.description) &&
+                status == epic.status &&
+                subtasksId.equals(epic.subtasksId);
     }
 }

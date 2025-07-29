@@ -1,11 +1,12 @@
-package app;
+package Main;
 
 import model.*;
-import todoManager.TaskManager;
+import manager.*;
 
 public class Main {
     public static void main(String[] args) {
-        TaskManager manager = new TaskManager();
+        Managers managers = new Managers();
+        InMemoryTaskManager manager = managers.getDefault();
 
         // --- Создание Task ---
         Task task1 = manager.createTask("Сходить в магазин", "Купить продукты", Status.NEW);
@@ -81,5 +82,9 @@ public class Main {
         manager.printAllTasks();
         manager.printAllEpics();
         manager.printAllSubtasks();
+
+        // --- История запросов ---
+        System.out.println("\n--- История последних 10-и запросов ---");
+        manager.getHistory();
     }
 }
