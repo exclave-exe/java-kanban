@@ -10,10 +10,10 @@ import java.util.HashMap;
 
 public class InMemoryTaskManager implements TaskManager {
     private static int totalId = 1;
-    private HashMap<Integer, Task> allTasks;
-    private HashMap<Integer, Epic> allEpics;
-    private HashMap<Integer, Subtask> allSubtasks;
-    private InMemoryHistoryManager inMemoryHistoryManager;
+    private final HashMap<Integer, Task> allTasks;
+    private final HashMap<Integer, Epic> allEpics;
+    private final HashMap<Integer, Subtask> allSubtasks;
+    private final InMemoryHistoryManager inMemoryHistoryManager;
 
     public InMemoryTaskManager() {
         allTasks = new HashMap<>();
@@ -91,7 +91,7 @@ public class InMemoryTaskManager implements TaskManager {
             System.out.println("Epic с таким id не существует.");
             return null;
         } else {
-            inMemoryHistoryManager.add(allEpics.get(id));;
+            inMemoryHistoryManager.add(allEpics.get(id));
             return allEpics.get(id);
         }
     }
@@ -102,7 +102,7 @@ public class InMemoryTaskManager implements TaskManager {
             System.out.println("Subtask с таким id не существует.");
             return null;
         } else {
-            inMemoryHistoryManager.add(allSubtasks.get(id));;
+            inMemoryHistoryManager.add(allSubtasks.get(id));
             return allSubtasks.get(id);
         }
     }
@@ -145,7 +145,7 @@ public class InMemoryTaskManager implements TaskManager {
             return;
         }
         allEpics.get(allSubtasks.get(id).getParentId()).removeSubtask(id);
-        updateStatus(allEpics.get(allSubtasks.get(id).getParentId()));
+        updateEpicStatus(allEpics.get(allSubtasks.get(id).getParentId()));
         allSubtasks.remove(id);
 
         System.out.println("Subtask успешно удален!");
@@ -172,28 +172,21 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public void updateStatus(Task task, Status status) {
         task.setStatus(status);
-    }
-
-    @Override
-    public void updateStatus(Subtask subtask, Status status) {
-        subtask.setStatus(status);
-        updateStatus(allEpics.get(subtask.getParentId()));
+        if (task.getClass() == Subtask.class) {
+            Subtask subtask = (Subtask) task;
+            updateEpicStatus(allEpics.get(subtask.getParentId()));
+        }
     }
 
     // Методы обновления name и description.
     @Override
-    public void update(Task task, String name, String description) {
-        task.setDetails(name,description);
+    public void updateName(Task task, String name) {
+        task.setName(name);
     }
 
     @Override
-    public void update(Epic epic, String name, String description) {
-        epic.setDetails(name,description);
-    }
-
-    @Override
-    public void update(Subtask subtask, String name, String description) {
-        subtask.setDetails(name,description);
+    public void updateDescription(Task task, String description) {
+        task.setDescription(description);
     }
 
     public void getHistory() {
@@ -203,7 +196,7 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     // Отдельный приватный метод для автоматического обновления статуса Epic в течении кода.
-    private void updateStatus(Epic epic) {
+    private void updateEpicStatus(Epic epic) {
         if (epic.getSubtasksId().isEmpty()) {
             epic.setStatus(Status.NEW);
             return;

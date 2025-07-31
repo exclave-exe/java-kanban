@@ -34,14 +34,10 @@ public interface TaskManager {
     void deleteAllEpics();
     void deleteAllSubtasks();
 
-    // Методы обновления статуса.
+    // Методы обновления полей.
     void updateStatus(Task task, Status status);
-    void updateStatus(Subtask subtask, Status status);
-
-    // Методы обновления name и description.
-    void update(Task task, String name, String description);
-    void update(Epic epic, String name, String description);
-    void update(Subtask subtask, String name, String description);
+    void updateName(Task task, String name);
+    void updateDescription(Task task, String description);
 
     // Метод возвращающий историю.
     void getHistory();

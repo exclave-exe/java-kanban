@@ -1,12 +1,11 @@
 package manager;
 
-// Не стал делать класс утилитарным, поскольку навебинаре сказали о том, что это антипаттерн.
-public class Managers {
-    public InMemoryTaskManager getDefault() {
+public final class Managers {
+    public static InMemoryTaskManager getDefault() {
         return new InMemoryTaskManager();
     }
 
-    public InMemoryHistoryManager getDefaultHistory() {
+    public static InMemoryHistoryManager getDefaultHistory() {
         return new InMemoryHistoryManager();
     }
 }

@@ -1,10 +1,10 @@
 package model;
 
+import java.util.List;
 import java.util.ArrayList;
-import java.util.Objects;
 
 public class Epic extends Task {
-    private ArrayList<Integer> subtasksId;
+    private final List<Integer> subtasksId;
 
     public Epic(int id, String name, String description) {
         super(id, name, description, Status.NEW);
@@ -14,7 +14,7 @@ public class Epic extends Task {
     // Методы добавления и удаления Subtasks.
     public void addSubtask(int subtaskId){
         if (this.id == subtaskId) {
-            throw new IllegalArgumentException("Epic не может содержать самого себя в виде подзадачи");
+            throw new IllegalArgumentException("Epic не может содержать самого себя в виде подзадачи.");
         }
         subtasksId.add(subtaskId);
     }
@@ -23,9 +23,8 @@ public class Epic extends Task {
         subtasksId.remove(Integer.valueOf(subtaskId));
     }
 
-    // Getter для метода updateStatus.
-    public ArrayList<Integer> getSubtasksId() {
-        return subtasksId;
+    public List<Integer> getSubtasksId() {
+        return new ArrayList<>(subtasksId);
     }
 
     // Переопределения.

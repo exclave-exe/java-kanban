@@ -14,7 +14,6 @@ public class Task {
         this.status = status;
     }
 
-    // Общие Getters.
     public int getId() {
         return id;
     }
@@ -23,14 +22,24 @@ public class Task {
         return status;
     }
 
-    // Общие Setters.
     public void setStatus(Status status) {
         this.status = status;
     }
 
-    public void setDetails(String name, String description) {
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
         this.name = name;
-        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String name) {
+        this.description = name;
     }
 
     // Метод для проверки по id.

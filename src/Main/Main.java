@@ -5,8 +5,7 @@ import manager.*;
 
 public class Main {
     public static void main(String[] args) {
-        Managers managers = new Managers();
-        InMemoryTaskManager manager = managers.getDefault();
+        InMemoryTaskManager manager = Managers.getDefault();
 
         // --- Создание Task ---
         Task task1 = manager.createTask("Сходить в магазин", "Купить продукты", Status.NEW);
@@ -56,9 +55,13 @@ public class Main {
         System.out.println(manager.getSubtask(subtask3.getId()));
 
         // --- Обновление имени и описания ---
-        manager.update(task2, "Выбросить мусор", "Сделать это после магазина");
-        manager.update(epic1, "Переезд в новый дом", "Другая квартира");
-        manager.update(subtask1, "Сложить одежду", "Положить в чемодан");
+        manager.updateName(task2, "Выбросить мусор");
+        manager.updateDescription(task2, "Сделать это после магазина");
+        manager.updateName(epic1, "Переезд в новый дом");
+        manager.updateDescription(epic1, "Другая квартира");
+        manager.updateName(subtask1, "Сложить одежду");
+        manager.updateDescription(subtask1,"Положить в чемодан");
+
 
         System.out.println("\n--- Просмотр после обновления описания ---");
         System.out.println(manager.getTask(task2.getId()));
