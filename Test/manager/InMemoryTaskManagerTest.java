@@ -38,7 +38,6 @@ class InMemoryTaskManagerTest {
         assertEquals(epic, manager.getEpic(epic.getId()), "Должен возвращаться Epic");
     }
 
-
     // Проверка, что удаление происходит корректно.
     @Test
     void shouldDeleteTask() {
@@ -214,7 +213,7 @@ class InMemoryTaskManagerTest {
         manager.updateDescription(task, "New test2");
 
         // Assert
-        assertEquals("New test1", task.getName(), "Имя Subtask должно обновиться");
-        assertEquals("New test2", task.getDescription(), "Описание Subtask должно обновиться");
+        assertEquals("New test1", task.getName(), "Имя Task должно обновиться");
+        assertEquals("New test2", task.getDescription(), "Описание Task должно обновиться");
     }
 }

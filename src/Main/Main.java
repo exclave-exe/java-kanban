@@ -7,87 +7,41 @@ public class Main {
     public static void main(String[] args) {
         InMemoryTaskManager manager = Managers.getDefault();
 
-        // --- Создание Task ---
+        // Дополнительное задание
         Task task1 = manager.createTask("Сходить в магазин", "Купить продукты", Status.NEW);
         Task task2 = manager.createTask("Выбросить мусор", "Пакет у двери", Status.NEW);
-
-        // --- Создание Epic и Subtasks ---
-        Epic epic1 = manager.createEpic("Переезд", "Переезд в новую квартиру");
-
-        Subtask subtask1 = manager.createSubtask(epic1, "Собрать вещи", "Упаковать в коробки", Status.NEW);
-        Subtask subtask2 = manager.createSubtask(epic1, "Вызвать такси", "На 18:00", Status.NEW);
-        Subtask subtask3 = manager.createSubtask(epic1, "Загрузить в машину", "Помощь друга", Status.NEW);
-
-        // --- Просмотр всех объектов ---
-        System.out.println("\n--- Все задачи ---");
-        manager.printAllTasks();
-
-        System.out.println("\n--- Все эпики ---");
-        manager.printAllEpics();
-
-        System.out.println("\n--- Все подзадачи ---");
-        manager.printAllSubtasks();
-
-        // --- Получение по ID ---
-        System.out.println("\n--- Получение Tasks по ID ---");
-        System.out.println(manager.getTask(task1.getId()));
-        System.out.println(manager.getTask(task2.getId()));
-
-        System.out.println("\n--- Получение Epic по ID ---");
-        System.out.println(manager.getEpic(epic1.getId()));
-
-        System.out.println("\n--- Получение Subtasks по ID ---");
-        System.out.println(manager.getSubtask(subtask1.getId()));
-        System.out.println(manager.getSubtask(subtask2.getId()));
-        System.out.println(manager.getSubtask(subtask3.getId()));
-
-        // --- Обновление статуса ---
-        manager.updateStatus(task1, Status.DONE);
-        manager.updateStatus(subtask1, Status.IN_PROGRESS);
-        manager.updateStatus(subtask2, Status.DONE);
-        manager.updateStatus(subtask3, Status.DONE);
-
-        System.out.println("\n--- Просмотр после обновления статусов ---");
-        System.out.println(manager.getTask(task1.getId()));
-        System.out.println(manager.getEpic(epic1.getId()));
-        System.out.println(manager.getSubtask(subtask1.getId()));
-        System.out.println(manager.getSubtask(subtask2.getId()));
-        System.out.println(manager.getSubtask(subtask3.getId()));
-
-        // --- Обновление имени и описания ---
-        manager.updateName(task2, "Выбросить мусор");
-        manager.updateDescription(task2, "Сделать это после магазина");
-        manager.updateName(epic1, "Переезд в новый дом");
-        manager.updateDescription(epic1, "Другая квартира");
-        manager.updateName(subtask1, "Сложить одежду");
-        manager.updateDescription(subtask1,"Положить в чемодан");
+        Epic epic3 = manager.createEpic("Переезд", "Переезд в новую квартиру");
+        Epic epic4 = manager.createEpic("Переезд2", "Переезд в новую квартиру2");
+        Subtask subtask5 = manager.createSubtask(epic3, "Собрать вещи", "Упаковать в коробки", Status.NEW);
+        Subtask subtask6 = manager.createSubtask(epic3, "Вызвать такси", "На 18:00", Status.NEW);
+        Subtask subtask7 = manager.createSubtask(epic3, "Загрузить в машину", "Помощь друга", Status.NEW);
 
 
-        System.out.println("\n--- Просмотр после обновления описания ---");
-        System.out.println(manager.getTask(task2.getId()));
-        System.out.println(manager.getEpic(epic1.getId()));
-        System.out.println(manager.getSubtask(subtask1.getId()));
+        manager.getTask(task1.getId());
+        manager.getTask(task2.getId());
+        manager.getEpic(epic3.getId());
+        manager.getEpic(epic4.getId());
+        manager.getSubtask(subtask5.getId());
+        manager.getSubtask(subtask6.getId());
+        manager.getSubtask(subtask7.getId());
 
-        // --- Удаление объектов по ID ---
-        manager.deleteTask(task2.getId());
-        manager.deleteSubtask(subtask1.getId());
-
-        System.out.println("\n--- После удаления ---");
-        manager.printAllTasks();
-        manager.printAllEpics();
-        manager.printAllSubtasks();
-
-        // --- Очистка всех задач ---
-        manager.deleteAllTasks();
-        manager.deleteAllEpics();
-
-        System.out.println("\n--- После полной очистки ---");
-        manager.printAllTasks();
-        manager.printAllEpics();
-        manager.printAllSubtasks();
-
-        // --- История запросов ---
-        System.out.println("\n--- История последних 10-и запросов ---");
+        System.out.println("\n--- История запросов ---");
         manager.getHistory();
+
+        manager.getTask(task2.getId());
+        manager.getEpic(epic3.getId());
+        manager.getSubtask(subtask6.getId());
+
+        System.out.println("\n--- История запросов ---");
+        manager.getHistory();
+
+        manager.deleteTask(1);
+        manager.deleteEpic(3);
+
+        System.out.println("\n--- История запросов ---");
+        manager.getHistory();
+
+
+
     }
 }

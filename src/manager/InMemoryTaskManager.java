@@ -116,6 +116,7 @@ public class InMemoryTaskManager implements TaskManager {
         }
         allTasks.remove(id);
         System.out.println("Task успешно удалён!");
+        inMemoryHistoryManager.remove(id);
     }
 
     @Override
@@ -129,12 +130,14 @@ public class InMemoryTaskManager implements TaskManager {
         for (Subtask subtask : allSubtasks.values()) {
             if (subtask.getParentId() == epic.getId()) {
                 toRemoveId.add(subtask.getId());
+                inMemoryHistoryManager.remove(subtask.getId());
             }
         }
         for (Integer subtaskId : toRemoveId) {
             allSubtasks.remove(subtaskId);
         }
         allEpics.remove(id);
+        inMemoryHistoryManager.remove(id);
         System.out.println("Epic и его Subtask(s) успешно удалены!");
     }
 
@@ -147,6 +150,7 @@ public class InMemoryTaskManager implements TaskManager {
         allEpics.get(allSubtasks.get(id).getParentId()).removeSubtask(id);
         updateEpicStatus(allEpics.get(allSubtasks.get(id).getParentId()));
         allSubtasks.remove(id);
+        inMemoryHistoryManager.remove(id);
 
         System.out.println("Subtask успешно удален!");
     }
@@ -154,17 +158,29 @@ public class InMemoryTaskManager implements TaskManager {
     // Методы очищения HashMap.
     @Override
     public void deleteAllTasks() {
+        for (int id : allTasks.keySet()){
+            inMemoryHistoryManager.remove(id);
+        }
         allTasks.clear();
     }
 
     @Override
     public void deleteAllEpics() {
+        for (int id : allSubtasks.keySet()){
+            inMemoryHistoryManager.remove(id);
+        }
+        for (int id : allEpics.keySet()){
+            inMemoryHistoryManager.remove(id);
+        }
         allEpics.clear();
         allSubtasks.clear();
     }
 
     @Override
     public void deleteAllSubtasks() {
+        for (int id : allSubtasks.keySet()){
+            inMemoryHistoryManager.remove(id);
+        }
         allSubtasks.clear();
     }
 
@@ -190,9 +206,7 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
     public void getHistory() {
-        for (Task anyTask : inMemoryHistoryManager.getHistory()) {
-            System.out.println(anyTask);
-        }
+        System.out.println(inMemoryHistoryManager.getHistory());
     }
 
     // Отдельный приватный метод для автоматического обновления статуса Epic в течении кода.
