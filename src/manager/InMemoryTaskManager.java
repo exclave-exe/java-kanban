@@ -158,7 +158,7 @@ public class InMemoryTaskManager implements TaskManager {
     // Методы очищения HashMap.
     @Override
     public void deleteAllTasks() {
-        for (int id : allTasks.keySet()){
+        for (int id : allTasks.keySet()) {
             inMemoryHistoryManager.remove(id);
         }
         allTasks.clear();
@@ -166,10 +166,10 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public void deleteAllEpics() {
-        for (int id : allSubtasks.keySet()){
+        for (int id : allSubtasks.keySet()) {
             inMemoryHistoryManager.remove(id);
         }
-        for (int id : allEpics.keySet()){
+        for (int id : allEpics.keySet()) {
             inMemoryHistoryManager.remove(id);
         }
         allEpics.clear();
@@ -178,7 +178,7 @@ public class InMemoryTaskManager implements TaskManager {
 
     @Override
     public void deleteAllSubtasks() {
-        for (int id : allSubtasks.keySet()){
+        for (int id : allSubtasks.keySet()) {
             inMemoryHistoryManager.remove(id);
         }
         allSubtasks.clear();
