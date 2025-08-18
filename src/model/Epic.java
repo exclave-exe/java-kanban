@@ -1,7 +1,7 @@
 package model;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Epic extends Task {
     private final List<Integer> subtasksId;
@@ -12,14 +12,14 @@ public class Epic extends Task {
     }
 
     // Методы добавления и удаления Subtasks.
-    public void addSubtask(int subtaskId){
+    public void addSubtask(int subtaskId) {
         if (this.id == subtaskId) {
             throw new IllegalArgumentException("Epic не может содержать самого себя в виде подзадачи.");
         }
         subtasksId.add(subtaskId);
     }
 
-    public void removeSubtask(int subtaskId){
+    public void removeSubtask(int subtaskId) {
         subtasksId.remove(Integer.valueOf(subtaskId));
     }
 
