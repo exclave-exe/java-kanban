@@ -1,5 +1,6 @@
 package manager;
 
+import model.Node;
 import model.Task;
 
 import java.util.ArrayList;
@@ -8,28 +9,15 @@ import java.util.Map;
 
 public class InMemoryHistoryManager implements HistoryManager {
 
-    private class Node {
-        private Task task;
-        private Node next;
-        private Node prev;
-
-        private Node(Node prev, Task task, Node next) {
-            this.prev = prev;
-            this.task = task;
-            this.next = next;
-
-        }
-    }
-
-    private Node tail;
-    private Node head;
+    private Node<Task> tail;
+    private Node<Task> head;
     private int size = 0;
 
-    private Map<Integer, Node> history = new HashMap<>();
+    private Map<Integer, Node<Task>> history = new HashMap<>();
 
     private void linkLast(Task task) {
-        Node oldTail = tail;
-        Node newNode = new Node(oldTail, task, null);
+        Node<Task> oldTail = tail;
+        Node<Task> newNode = new Node<>(oldTail, task, null);
         tail = newNode;
         if (head == null) {
             head = newNode;
@@ -40,11 +28,11 @@ public class InMemoryHistoryManager implements HistoryManager {
         history.put(task.getId(), newNode);
     }
 
-    private void removeNode(Node nodeForRemove) {
+    private void removeNode(Node<Task> nodeForRemove) {
         if (nodeForRemove == null) return;
 
-        Node prevNode = nodeForRemove.prev;
-        Node nextNode = nodeForRemove.next;
+        Node<Task> prevNode = nodeForRemove.prev;
+        Node<Task> nextNode = nodeForRemove.next;
 
         if (prevNode == null && nextNode == null) {
             head = null;
@@ -67,9 +55,9 @@ public class InMemoryHistoryManager implements HistoryManager {
 
     private ArrayList<Task> getTasks() {
         ArrayList<Task> allTasks = new ArrayList<>();
-        Node currentNode = head;
+        Node<Task> currentNode = head;
         for (int i = 0; i < size; i++) {
-            allTasks.add(currentNode.task);
+            allTasks.add(currentNode.data);
             currentNode = currentNode.next;
         }
         return allTasks;
