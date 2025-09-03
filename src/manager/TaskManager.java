@@ -5,6 +5,8 @@ import model.Status;
 import model.Subtask;
 import model.Task;
 
+import java.util.List;
+
 public interface TaskManager {
     // Метод генерации неповторяющегося ID.
     int generateTotalId();
@@ -22,6 +24,13 @@ public interface TaskManager {
     void printAllEpics();
 
     void printAllSubtasks();
+
+    // Методы возвращения копии списка всех Task / Epics / Subtask.
+    List<Task> returnAllTasks();
+
+    List<Epic> returnAllEpics();
+
+    List<Subtask> returnAllSubtasks();
 
     // Методы получения по ID из HashMap.
     Task getTask(int id);

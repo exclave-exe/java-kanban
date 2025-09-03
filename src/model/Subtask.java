@@ -3,12 +3,12 @@ package model;
 public class Subtask extends Task {
     private final int parentId;
 
-    public Subtask(int id, Epic parent, String name, String description, Status status) {
+    public Subtask(int id, int parentId, String name, String description, Status status) {
         super(id, name, description, status);
-        if (parent.getId() == id) {
+        if (parentId == id) {
             throw new IllegalArgumentException("Subtask не может быть своим же Epic'ом");
         }
-        this.parentId = parent.getId();
+        this.parentId = parentId;
     }
 
     public int getParentId() {

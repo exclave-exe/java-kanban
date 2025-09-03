@@ -4,33 +4,143 @@ import model.Epic;
 import model.Status;
 import model.Subtask;
 import model.Task;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class InMemoryTaskManagerTest {
+class FileBackedTaskManagerTest {
+
+    private File dir;
+    private File file;
+    private FileBackedTaskManager manager;
+
+    @BeforeEach
+    void setUp() throws IOException {
+        dir = new File("resources/tests");
+        file = File.createTempFile("test", ".csv", dir);
+        file.deleteOnExit();
+        manager = new FileBackedTaskManager(file);
+    }
+
+    // Тест, в котором проверяется сохранение в файл
+    @Test
+    void saveCreatesFileWithTasks() throws IOException {
+        //Arrange
+        Task task = manager.createTask("Task1", "test", Status.NEW);
+        Epic epic = manager.createEpic("Epic1", "test");
+        Subtask subtask = manager.createSubtask(epic, "Subtask1", "test", Status.NEW);
+
+        //Act
+        List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+
+        //Assert
+        assertFalse(lines.isEmpty(), "Файл не должен быть пустым");
+        assertEquals("id,type,name,status,description,epic", lines.getFirst(),
+                "Первая строка должна быть заголовком CSV");
+
+        boolean containsTask = false;
+        for (String line : lines) {
+            if (line.contains("Task1")) {
+                containsTask = true;
+                break;
+            }
+        }
+        assertTrue(containsTask, "Файл должен содержать Task");
+
+        boolean containsEpic = false;
+        for (String line : lines) {
+            if (line.contains("Epic1")) {
+                containsEpic = true;
+                break;
+            }
+        }
+        assertTrue(containsEpic, "Файл должен содержать Epic");
+
+        boolean containsSubtask = false;
+        for (String line : lines) {
+            if (line.contains("Subtask1")) {
+                containsSubtask = true;
+                break;
+            }
+        }
+        assertTrue(containsSubtask, "Файл должен содержать Subtask");
+    }
+
+    // Тест, в котором проверяется загрузка из файла
+    @Test
+    void loadFromFileRestoresTasksCorrectly() {
+        // Arrange
+        Task task = manager.createTask("test", "test", Status.NEW);
+        Epic epic = manager.createEpic("test", "test");
+        Subtask subtask = manager.createSubtask(epic, "test", "test", Status.NEW);
+
+        // Act
+        FileBackedTaskManager fbtm = FileBackedTaskManager.loadFromFile(file);
+
+        // Assert
+        assertEquals(fbtm.getTask(task.getId()), task, "Task должен восстановиться корректно");
+        assertEquals(fbtm.getEpic(epic.getId()), epic, "Epic должен восстановиться корректно");
+        assertEquals(fbtm.getSubtask(subtask.getId()), subtask, "Subtask должен восстановиться корректно");
+        assertEquals(1, fbtm.returnAllEpics().size(), "При восстановлении длинна должна совпадать");
+        assertEquals(1, fbtm.returnAllTasks().size(), "При восстановлении длинна должна совпадать");
+        assertEquals(1, fbtm.returnAllTasks().size(), "При восстановлении длинна должна совпадать");
+
+    }
+
+    // Тест, в котором проверяется создание менеджера без загрузки если файл отсутствует
+    @Test
+    void loadFromMissingFileReturnsEmptyManager() throws IOException {
+        // Arrange
+        File missingFile = new File("resources/tests/sfasf.csv");
+        missingFile.delete();
+
+        // Act
+        FileBackedTaskManager loadedManager = FileBackedTaskManager.loadFromFile(missingFile);
+
+        // Assert
+        assertTrue(loadedManager.returnAllTasks().isEmpty(), "Менеджер должен быть пустым");
+        assertTrue(loadedManager.returnAllEpics().isEmpty(), "Менеджер должен быть пустым");
+        assertTrue(loadedManager.returnAllSubtasks().isEmpty(), "Менеджер должен быть пустым");
+    }
+
+    // Тест, в котором проверяется создание менеджера без загрузки если файл пустой
+    @Test
+    void loadFromEmptyFileReturnsEmptyManager() throws IOException {
+        // Act
+        FileBackedTaskManager loadedManager = FileBackedTaskManager.loadFromFile(file);
+
+        // Assert
+        assertTrue(loadedManager.returnAllTasks().isEmpty(), "Менеджер должен быть пустым");
+        assertTrue(loadedManager.returnAllEpics().isEmpty(), "Менеджер должен быть пустым");
+        assertTrue(loadedManager.returnAllSubtasks().isEmpty(), "Менеджер должен быть пустым");
+    }
 
     // Тест, в котором проверяется неизменность задачи при добавлении в менеджер
     @Test
     void taskShouldRemainUnchangedAfterAddingToManager() {
-        // Arrange
-        InMemoryTaskManager inMemoryTaskManager = new InMemoryTaskManager();
-        Task newTask = inMemoryTaskManager.createTask("test", "test", Status.NEW);
+        // Act
+        Task newTask = manager.createTask("test", "test", Status.NEW);
 
-        // Act & Assert
-        assertEquals(newTask, inMemoryTaskManager.getTask(newTask.getId()), "Task должен остаться прежним.");
+        // Assert
+        assertEquals(newTask, manager.getTask(newTask.getId()), "Task должен остаться прежним.");
     }
 
     // Проверка, что геттеры возвращают корректно.
     @Test
     void shouldReturnTaskSubtaskEpic() {
-        // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
+        // Act
         Task task = manager.createTask("test", "test", Status.NEW);
         Epic epic = manager.createEpic("test", "test");
         Subtask subtask = manager.createSubtask(epic, "test", "test", Status.NEW);
 
-        // Act & Assert
+        // Assert
         assertEquals(task, manager.getTask(task.getId()), "Должен возвращаться Task");
         assertEquals(subtask, manager.getSubtask(subtask.getId()), "Должен возвращаться Subtask");
         assertEquals(epic, manager.getEpic(epic.getId()), "Должен возвращаться Epic");
@@ -40,7 +150,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldDeleteTask() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Task task = manager.createTask("test", "test", Status.NEW);
 
         // Act
@@ -54,7 +163,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldDeleteSubtaskAndRemoveFromEpic() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic = manager.createEpic("test", "test");
         Subtask subtask = manager.createSubtask(epic, "test", "test", Status.NEW);
 
@@ -69,7 +177,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldDeleteEpicAndItsSubtasks() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic = manager.createEpic("test", "test");
         Subtask subtask1 = manager.createSubtask(epic, "test", "test", Status.NEW);
         Subtask subtask2 = manager.createSubtask(epic, "test", "test", Status.DONE);
@@ -86,7 +193,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldClearAllTasks() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Task task1 = manager.createTask("test", "test", Status.NEW);
         Task task2 = manager.createTask("test", "test", Status.NEW);
 
@@ -101,7 +207,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldClearAllEpicsAndSubtasks() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic1 = manager.createEpic("test", "test");
         Epic epic2 = manager.createEpic("test", "test");
         Subtask subtask1 = manager.createSubtask(epic1, "test", "test", Status.NEW);
@@ -121,7 +226,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldClearAllSubtasks() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic1 = manager.createEpic("test", "test");
         Epic epic2 = manager.createEpic("test", "test");
         Subtask subtask1 = manager.createSubtask(epic1, "test", "test", Status.NEW);
@@ -141,7 +245,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldUpdateTaskStatus() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Task task = manager.createTask("test", "test", Status.NEW);
 
         // Act
@@ -154,7 +257,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldUpdateSubtaskAndEpicStatus() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic1 = manager.createEpic("test", "test");
         Subtask subtask1 = manager.createSubtask(epic1, "test", "test", Status.NEW);
         Subtask subtask2 = manager.createSubtask(epic1, "test", "test", Status.NEW);
@@ -170,7 +272,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldUpdateEpicNameAndDescription() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic = manager.createEpic("test", "test");
 
         // Act
@@ -185,15 +286,12 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldUpdateSubtaskNameAndDescription() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Epic epic = manager.createEpic("test", "test");
         Subtask subtask = manager.createSubtask(epic, "test", "test", Status.NEW);
-
 
         // Act
         manager.updateName(subtask, "New test1");
         manager.updateDescription(subtask, "New test2");
-
 
         // Assert
         assertEquals("New test1", subtask.getName(), "Имя Subtask должно обновиться");
@@ -203,7 +301,6 @@ class InMemoryTaskManagerTest {
     @Test
     void shouldUpdateTaskNameAndDescription() {
         // Arrange
-        InMemoryTaskManager manager = new InMemoryTaskManager();
         Task task = manager.createTask("test", "test", Status.NEW);
 
         // Act
