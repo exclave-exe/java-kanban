@@ -7,13 +7,14 @@ import model.Task;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class InMemoryTaskManager implements TaskManager {
-    private static int totalId = 1;
-    private final HashMap<Integer, Task> allTasks;
-    private final HashMap<Integer, Epic> allEpics;
-    private final HashMap<Integer, Subtask> allSubtasks;
-    private final InMemoryHistoryManager inMemoryHistoryManager;
+    protected static int totalId = 1;
+    protected final HashMap<Integer, Task> allTasks;
+    protected final HashMap<Integer, Epic> allEpics;
+    protected final HashMap<Integer, Subtask> allSubtasks;
+    protected final InMemoryHistoryManager inMemoryHistoryManager;
 
     public InMemoryTaskManager() {
         allTasks = new HashMap<>();
@@ -50,9 +51,10 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Subtask createSubtask(Epic parent, String name, String description, Status status) {
         int id = generateTotalId();
-        Subtask subtask = new Subtask(id, parent, name, description, status);
+        Subtask subtask = new Subtask(id, parent.getId(), name, description, status);
         parent.addSubtask(subtask.getId());
         allSubtasks.put(subtask.getId(), subtask);
+        updateEpicStatus(parent);
         System.out.println("Subtask успешно добавлен!");
         return subtask;
     }
@@ -71,6 +73,22 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public void printAllSubtasks() {
         System.out.println(allSubtasks.values());
+    }
+
+    // Методы возвращения списка всех Task / Epics / Subtask.
+    @Override
+    public List<Task> returnAllTasks() {
+        return new ArrayList<>(allTasks.values());
+    }
+
+    @Override
+    public List<Epic> returnAllEpics() {
+        return new ArrayList<>(allEpics.values());
+    }
+
+    @Override
+    public List<Subtask> returnAllSubtasks() {
+        return new ArrayList<>(allSubtasks.values());
     }
 
     // Методы получения по ID из HashMap.
