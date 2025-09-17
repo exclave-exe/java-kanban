@@ -18,19 +18,12 @@ public interface TaskManager {
 
     Subtask createSubtask(Epic parent, String name, String description, Status status);
 
-    // Методы просмотра HashMap.
-    void printAllTasks();
-
-    void printAllEpics();
-
-    void printAllSubtasks();
-
     // Методы возвращения копии списка всех Task / Epics / Subtask.
-    List<Task> returnAllTasks();
+    List<Task> getAllTasks();
 
-    List<Epic> returnAllEpics();
+    List<Epic> getAllEpics();
 
-    List<Subtask> returnAllSubtasks();
+    List<Subtask> getAllSubtasks();
 
     // Методы получения по ID из HashMap.
     Task getTask(int id);
@@ -40,11 +33,11 @@ public interface TaskManager {
     Subtask getSubtask(int id);
 
     // Методы удаления по ID из HashMap.
-    void deleteTask(int id);
+    boolean deleteTask(int id);
 
-    void deleteEpic(int id);
+    boolean deleteEpic(int id);
 
-    void deleteSubtask(int id);
+    boolean deleteSubtask(int id);
 
     // Методы очищения HashMap.
     void deleteAllTasks();
@@ -60,6 +53,4 @@ public interface TaskManager {
 
     void updateDescription(Task task, String description);
 
-    // Метод возвращающий историю.
-    void getHistory();
 }

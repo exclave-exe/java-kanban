@@ -1,12 +1,14 @@
 package manager;
 
-import model.Task;
-import java.util.ArrayList;
 import model.Status;
-
+import model.Task;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.*;
+
+import java.util.ArrayList;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryHistoryManagerTest {
 
@@ -149,8 +151,4 @@ class InMemoryHistoryManagerTest {
         assertEquals(task1, history.get(0), "Первый элемент должен остаться task1");
         assertEquals(task2, history.get(1), "Новый хвост должен быть task2");
     }
-
-
-
-
 }

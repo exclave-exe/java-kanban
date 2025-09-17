@@ -1,11 +1,17 @@
 package model;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 public class Task {
 
     protected int id;
     protected String name;
     protected String description;
     protected Status status;
+    protected LocalDateTime startTime;
+    protected Long duration = 0L;
 
     public Task(int id, String name, String description, Status status) {
         this.id = id;
@@ -42,6 +48,29 @@ public class Task {
         this.description = name;
     }
 
+    public LocalDateTime getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(LocalDateTime startTime) {
+        this.startTime = startTime;
+    }
+
+    public Duration getDurationTime() {
+        return Duration.ofMinutes(duration);
+    }
+
+    public void setDurationTime(Duration durationTime) {
+        this.duration = durationTime.toMinutes();
+    }
+
+    public LocalDateTime getEndTime() {
+        if (startTime == null) {
+            return null;
+        }
+        return startTime.plus(Duration.ofMinutes(duration));
+    }
+
     // Метод для проверки по id.
     public boolean hasSameId(Task other) {
         if (other == null) return false;
@@ -51,12 +80,24 @@ public class Task {
     // Переопределение.
     @Override
     public String toString() {
-        return "Task{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description.length() + '\'' +
-                ", status=" + status +
-                '}';
+
+        String taskStartTime = !(startTime == null)
+                ? startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        String taskEndTime = !(getEndTime() == null)
+                ? getEndTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        return "Task {" +
+                "|id = " + id + "|" +
+                ", |name = " + name + "|" +
+                ", |description = " + description.length() + "|" +
+                ", |status = " + status + "|" +
+                ", |startTime = " + taskStartTime + "|" +
+                ", |duration = " + duration + "|" +
+                ", |endTime = " + taskEndTime + "|" +
+                "}";
     }
 
     @Override
