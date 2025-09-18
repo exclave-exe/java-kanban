@@ -1,5 +1,7 @@
 package model;
 
+import java.time.format.DateTimeFormatter;
+
 public class Subtask extends Task {
     private final int parentId;
 
@@ -18,12 +20,24 @@ public class Subtask extends Task {
     // Переопределение.
     @Override
     public String toString() {
-        return "Subtask{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description.length() + '\'' +
-                ", status=" + status +
-                ",\nparentId=" + parentId +
+
+        String taskStartTime = !(startTime == null)
+                ? startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        String taskEndTime = !(getEndTime() == null)
+                ? getEndTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        return "Subtask {" +
+                "|id = " + id +
+                ", |name = " + name + "|" +
+                ", |description = " + description.length() + "|" +
+                ", |status = " + status + "|" +
+                ", |parentId = " + parentId + "|" +
+                ", |startTime = " + taskStartTime + "|" +
+                ", |duration = " + duration + "|" +
+                ", |endTime = " + taskEndTime + "|" +
                 "}";
     }
 

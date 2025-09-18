@@ -1,10 +1,13 @@
 package model;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 
 public class Epic extends Task {
     private final List<Integer> subtasksId;
+    private LocalDateTime endTime;
 
     public Epic(int id, String name, String description) {
         super(id, name, description, Status.NEW);
@@ -23,20 +26,45 @@ public class Epic extends Task {
         subtasksId.remove(Integer.valueOf(subtaskId));
     }
 
+    public void removeAllSubtask() {
+        this.subtasksId.clear();
+    }
+
     public List<Integer> getSubtasksId() {
         return new ArrayList<>(subtasksId);
+    }
+
+    public void setEndTime(LocalDateTime localDateTime) {
+        this.endTime = localDateTime;
+    }
+
+    @Override
+    public LocalDateTime getEndTime() {
+        return endTime;
     }
 
     // Переопределения.
     @Override
     public String toString() {
-        return "Epic{" +
-                "id=" + id +
-                ", name='" + name + '\'' +
-                ", description='" + description.length() + '\'' +
-                ", status=" + status +
-                ",\nsubtasksId=" + subtasksId +
-                '}';
+
+        String taskStartTime = !(startTime == null)
+                ? startTime.format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        String taskEndTime = !(endTime == null)
+                ? getEndTime().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"))
+                : "None";
+
+        return "Epic {" +
+                "|id=" + id + "|" +
+                ", |name='" + name + "|" +
+                ", |description='" + description.length() + "|" +
+                ", |status=" + status + "|" +
+                ", |subtasksId=" + subtasksId + "|" +
+                ", |startTime = " + taskStartTime + "|" +
+                ", |duration = " + duration + "|" +
+                ", |endTime = " + taskEndTime + "|" +
+                "}";
     }
 
     @Override

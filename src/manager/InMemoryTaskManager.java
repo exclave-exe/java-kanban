@@ -5,9 +5,9 @@ import model.Status;
 import model.Subtask;
 import model.Task;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.*;
 
 public class InMemoryTaskManager implements TaskManager {
     protected static int totalId = 1;
@@ -15,27 +15,26 @@ public class InMemoryTaskManager implements TaskManager {
     protected final HashMap<Integer, Epic> allEpics;
     protected final HashMap<Integer, Subtask> allSubtasks;
     protected final InMemoryHistoryManager inMemoryHistoryManager;
+    protected final TreeSet<Task> tasksByPriority;
 
     public InMemoryTaskManager() {
         allTasks = new HashMap<>();
         allEpics = new HashMap<>();
         allSubtasks = new HashMap<>();
         inMemoryHistoryManager = new InMemoryHistoryManager();
+        tasksByPriority = new TreeSet<>(Comparator.comparing(Task::getStartTime, Comparator.nullsLast(Comparator.naturalOrder())).thenComparing(Task::getId));
     }
 
-    // Метод генерации неповторяющегося ID.
     @Override
     public int generateTotalId() {
         return totalId++;
     }
 
-    // Методы создания объектов.
     @Override
     public Task createTask(String name, String description, Status status) {
         int id = generateTotalId();
         Task task = new Task(id, name, description, status);
         allTasks.put(task.getId(), task);
-        System.out.println("Task успешно создан!");
         return task;
     }
 
@@ -44,7 +43,6 @@ public class InMemoryTaskManager implements TaskManager {
         int id = generateTotalId();
         Epic epic = new Epic(id, name, description);
         allEpics.put(epic.getId(), epic);
-        System.out.println("Epic успешно создан!");
         return epic;
     }
 
@@ -55,164 +53,146 @@ public class InMemoryTaskManager implements TaskManager {
         parent.addSubtask(subtask.getId());
         allSubtasks.put(subtask.getId(), subtask);
         updateEpicStatus(parent);
-        System.out.println("Subtask успешно добавлен!");
         return subtask;
     }
 
-    // Методы просмотра HashMap.
     @Override
-    public void printAllTasks() {
-        System.out.println(allTasks.values());
-    }
-
-    @Override
-    public void printAllEpics() {
-        System.out.println(allEpics.values());
-    }
-
-    @Override
-    public void printAllSubtasks() {
-        System.out.println(allSubtasks.values());
-    }
-
-    // Методы возвращения списка всех Task / Epics / Subtask.
-    @Override
-    public List<Task> returnAllTasks() {
+    public List<Task> getAllTasks() {
         return new ArrayList<>(allTasks.values());
     }
 
     @Override
-    public List<Epic> returnAllEpics() {
+    public List<Epic> getAllEpics() {
         return new ArrayList<>(allEpics.values());
     }
 
     @Override
-    public List<Subtask> returnAllSubtasks() {
+    public List<Subtask> getAllSubtasks() {
         return new ArrayList<>(allSubtasks.values());
     }
 
-    // Методы получения по ID из HashMap.
     @Override
-    public Task getTask(int id) {
-        if (allTasks.get(id) == null) {
-            System.out.println("Task с таким id не существует.");
+    public Task getTask(int taskId) {
+        if (allTasks.get(taskId) == null) {
             return null;
-        } else {
-            inMemoryHistoryManager.add(allTasks.get(id));
-            return allTasks.get(id);
         }
+        inMemoryHistoryManager.add(allTasks.get(taskId));
+        return allTasks.get(taskId);
     }
 
     @Override
-    public Epic getEpic(int id) {
-        if (allEpics.get(id) == null) {
-            System.out.println("Epic с таким id не существует.");
+    public Epic getEpic(int epicId) {
+        if (allEpics.get(epicId) == null) {
             return null;
-        } else {
-            inMemoryHistoryManager.add(allEpics.get(id));
-            return allEpics.get(id);
         }
+        inMemoryHistoryManager.add(allEpics.get(epicId));
+        return allEpics.get(epicId);
     }
 
     @Override
-    public Subtask getSubtask(int id) {
-        if (allSubtasks.get(id) == null) {
-            System.out.println("Subtask с таким id не существует.");
+    public Subtask getSubtask(int subtaskId) {
+        if (allSubtasks.get(subtaskId) == null) {
             return null;
-        } else {
-            inMemoryHistoryManager.add(allSubtasks.get(id));
-            return allSubtasks.get(id);
         }
-    }
-
-    // Методы удаления по ID из HashMap.
-    @Override
-    public void deleteTask(int id) {
-        if (allTasks.get(id) == null) {
-            System.out.println("Ошибка удаления. Task с таким id не существует.");
-            return;
-        }
-        allTasks.remove(id);
-        System.out.println("Task успешно удалён!");
-        inMemoryHistoryManager.remove(id);
+        inMemoryHistoryManager.add(allSubtasks.get(subtaskId));
+        return allSubtasks.get(subtaskId);
     }
 
     @Override
-    public void deleteEpic(int id) {
-        if (allEpics.get(id) == null) {
-            System.out.println("Ошибка удаления. Epic с таким id не существует.");
-            return;
+    public boolean deleteTask(int taskId) {
+        if (allTasks.get(taskId) == null) {
+            return false;
         }
-        Epic epic = allEpics.get(id);
-        ArrayList<Integer> toRemoveId = new ArrayList<>();
-        for (Subtask subtask : allSubtasks.values()) {
-            if (subtask.getParentId() == epic.getId()) {
-                toRemoveId.add(subtask.getId());
-                inMemoryHistoryManager.remove(subtask.getId());
-            }
+        tasksByPriority.remove(allTasks.get(taskId));
+        inMemoryHistoryManager.remove(taskId);
+        allTasks.remove(taskId);
+        return true;
+    }
+
+    @Override
+    public boolean deleteEpic(int epicId) {
+        if (allEpics.get(epicId) == null) {
+            return false;
         }
-        for (Integer subtaskId : toRemoveId) {
+        allEpics.get(epicId).getSubtasksId().forEach(subtaskId -> {
+            tasksByPriority.remove(allSubtasks.get(subtaskId));
+            inMemoryHistoryManager.remove(subtaskId);
             allSubtasks.remove(subtaskId);
-        }
-        allEpics.remove(id);
-        inMemoryHistoryManager.remove(id);
-        System.out.println("Epic и его Subtask(s) успешно удалены!");
+        });
+        tasksByPriority.remove(allEpics.get(epicId));
+        inMemoryHistoryManager.remove(epicId);
+        allEpics.remove(epicId);
+        return true;
     }
 
     @Override
-    public void deleteSubtask(int id) {
-        if (allSubtasks.get(id) == null) {
-            System.out.println("Ошибка удаления. Subtask с таким id не существует.");
-            return;
+    public boolean deleteSubtask(int subtaskId) {
+        if (allSubtasks.get(subtaskId) == null) {
+            return false;
         }
-        allEpics.get(allSubtasks.get(id).getParentId()).removeSubtask(id);
-        updateEpicStatus(allEpics.get(allSubtasks.get(id).getParentId()));
-        allSubtasks.remove(id);
-        inMemoryHistoryManager.remove(id);
-
-        System.out.println("Subtask успешно удален!");
+        Epic parent = allEpics.get(allSubtasks.get(subtaskId).getParentId());
+        parent.removeSubtask(subtaskId);
+        tasksByPriority.remove(allSubtasks.get(subtaskId));
+        inMemoryHistoryManager.remove(subtaskId);
+        allSubtasks.remove(subtaskId);
+        updateEpicStatus(parent);
+        updateEpicStartTimeAndDuration(parent);
+        return true;
     }
 
-    // Методы очищения HashMap.
     @Override
     public void deleteAllTasks() {
-        for (int id : allTasks.keySet()) {
-            inMemoryHistoryManager.remove(id);
-        }
+        allTasks.keySet().forEach(taskId -> {
+            tasksByPriority.remove(allTasks.get(taskId));
+            inMemoryHistoryManager.remove(taskId);
+        });
         allTasks.clear();
     }
 
     @Override
     public void deleteAllEpics() {
-        for (int id : allSubtasks.keySet()) {
-            inMemoryHistoryManager.remove(id);
-        }
-        for (int id : allEpics.keySet()) {
-            inMemoryHistoryManager.remove(id);
-        }
+        allSubtasks.keySet().forEach(subtaskId -> {
+            tasksByPriority.remove(allSubtasks.get(subtaskId));
+            inMemoryHistoryManager.remove(subtaskId);
+        });
+        allEpics.keySet().forEach(taskId -> {
+            tasksByPriority.remove(allEpics.get(taskId));
+            inMemoryHistoryManager.remove(taskId);
+        });
         allEpics.clear();
         allSubtasks.clear();
     }
 
     @Override
     public void deleteAllSubtasks() {
-        for (int id : allSubtasks.keySet()) {
-            inMemoryHistoryManager.remove(id);
-        }
+        allSubtasks.keySet().forEach(subtaskId -> {
+            tasksByPriority.remove(allSubtasks.get(subtaskId));
+            inMemoryHistoryManager.remove(subtaskId);
+        });
+        allEpics.values().forEach(epic -> {
+            epic.removeAllSubtask();
+            updateEpicStatus(epic);
+            updateEpicStartTimeAndDuration(epic);
+        });
         allSubtasks.clear();
     }
 
-    // Методы обновления статуса.
     @Override
     public void updateStatus(Task task, Status status) {
-        task.setStatus(status);
-        if (task.getClass() == Subtask.class) {
-            Subtask subtask = (Subtask) task;
-            updateEpicStatus(allEpics.get(subtask.getParentId()));
+        switch (task) {
+            case Subtask subtask -> {
+                subtask.setStatus(status);
+                updateEpicStatus(allEpics.get(subtask.getParentId()));
+            }
+            case Epic ignored -> {
+                // Обновление Epic происходит автоматически
+            }
+            default -> {
+                task.setStatus(status);
+            }
         }
     }
 
-    // Методы обновления name и description.
     @Override
     public void updateName(Task task, String name) {
         task.setName(name);
@@ -223,38 +203,102 @@ public class InMemoryTaskManager implements TaskManager {
         task.setDescription(description);
     }
 
-    public void getHistory() {
-        System.out.println(inMemoryHistoryManager.getHistory());
+    public List<Task> getHistory() {
+        return new ArrayList<>(inMemoryHistoryManager.getHistory());
     }
 
-    // Отдельный приватный метод для автоматического обновления статуса Epic в течении кода.
-    private void updateEpicStatus(Epic epic) {
+    public Set<Task> getTasksByPriority(boolean ascending) {
+        if (ascending) {
+            return new TreeSet<>(tasksByPriority);
+        } else {
+            return tasksByPriority.descendingSet();
+        }
+    }
+
+    public void setStartTimeAndDuration(Task task, LocalDateTime localDateTime, Duration duration) {
+        if (isIntersection(localDateTime, duration)) {
+            return;
+        }
+
+        if (task.getStartTime() != null) {
+            tasksByPriority.remove(task);
+        }
+
+        switch (task) {
+            case Subtask subtask -> {
+                subtask.setDurationTime(duration);
+                subtask.setStartTime(localDateTime);
+                updateEpicStartTimeAndDuration(allEpics.get(subtask.getParentId()));
+                tasksByPriority.add(subtask);
+            }
+            case Epic ignored -> {
+                // Обновление Epic происходит автоматически
+            }
+            default -> {
+                task.setDurationTime(duration);
+                task.setStartTime(localDateTime);
+                tasksByPriority.add(task);
+            }
+        }
+    }
+
+    // Метод для автоматического обновления статуса Epic в течении кода.
+    protected void updateEpicStatus(Epic epic) {
         if (epic.getSubtasksId().isEmpty()) {
             epic.setStatus(Status.NEW);
             return;
         }
-        ArrayList<Subtask> subtaskOfAnEpic = new ArrayList<>();
-        for (Subtask subtask : allSubtasks.values()) {
-            if (subtask.getParentId() == epic.getId()) {
-                subtaskOfAnEpic.add(subtask);
-            }
+
+        boolean allNew = epic.getSubtasksId().stream()
+                .map(allSubtasks::get)
+                .allMatch(s -> s.getStatus() == Status.NEW);
+
+        boolean allDone = epic.getSubtasksId().stream()
+                .map(allSubtasks::get)
+                .allMatch(s -> s.getStatus() == Status.DONE);
+
+        epic.setStatus(allNew ? Status.NEW : (allDone ? Status.DONE : Status.IN_PROGRESS));
+    }
+
+    // Приватный метод для определения пересечения.
+    private boolean isIntersection(LocalDateTime startTime, Duration duration) {
+        if (tasksByPriority.isEmpty()) {
+            return false;
         }
-        boolean isAllNew = true;
-        boolean isAllDone = true;
-        for (Subtask subtask : subtaskOfAnEpic) {
-            if (subtask.getStatus() != Status.NEW) {
-                isAllNew = false;
-            }
-            if (subtask.getStatus() != Status.DONE) {
-                isAllDone = false;
-            }
+        return tasksByPriority.stream()
+                .anyMatch((task) -> !startTime.isAfter(task.getEndTime()) &&
+                        !startTime.plus(duration).isBefore(task.getStartTime()));
+    }
+
+    // Приватный метод для автоматической работы со временем Epic
+    private void updateEpicStartTimeAndDuration(Epic epic) {
+        if (epic.getSubtasksId().isEmpty()) {
+            epic.setStartTime(null);
+            epic.setEndTime(null);
+            epic.setDurationTime(Duration.ZERO);
+            return;
         }
-        if (isAllNew) {
-            epic.setStatus(Status.NEW);
-        } else if (isAllDone) {
-            epic.setStatus(Status.DONE);
+
+        epic.setStartTime(epic.getSubtasksId().stream()
+                .map(allSubtasks::get)
+                .map(Subtask::getStartTime)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null)
+        );
+
+        epic.setEndTime(epic.getSubtasksId().stream()
+                .map(allSubtasks::get)
+                .map(Subtask::getEndTime)
+                .filter(Objects::nonNull)
+                .max(Comparator.naturalOrder())
+                .orElse(null)
+        );
+
+        if (epic.getStartTime() != null && epic.getEndTime() != null) {
+            epic.setDurationTime(Duration.between(epic.getStartTime(), epic.getEndTime()));
         } else {
-            epic.setStatus(Status.IN_PROGRESS);
+            epic.setDurationTime(Duration.ZERO);
         }
     }
 }
