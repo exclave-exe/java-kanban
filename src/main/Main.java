@@ -1,48 +1,30 @@
 package main;
 
+import exceptions.TimeInterectionException;
 import manager.InMemoryTaskManager;
-import manager.Managers;
-import model.Epic;
 import model.Status;
-import model.Subtask;
 import model.Task;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 public class Main {
     public static void main(String[] args) {
-        InMemoryTaskManager manager = Managers.getDefault();
+        InMemoryTaskManager manager = new InMemoryTaskManager();
+        Task task1 = manager.createTask("Task 1", "Description 1", Status.NEW);
+        LocalDateTime start1 = LocalDateTime.of(2025, 9, 17, 10, 0);
+        Duration duration1 = Duration.ofHours(2);
+        Task task2 = manager.createTask("Task 2", "Description 2", Status.NEW);
+        LocalDateTime start2 = LocalDateTime.of(2025, 9, 17, 11, 0);
+        Duration duration2 = Duration.ofHours(1);
 
-        // Дополнительное задание
-        Task task1 = manager.createTask("Сходить в магазин", "Купить продукты", Status.NEW);
-        Task task2 = manager.createTask("Выбросить мусор", "Пакет у двери", Status.NEW);
-        Epic epic3 = manager.createEpic("Переезд", "Переезд в новую квартиру");
-        Epic epic4 = manager.createEpic("Переезд2", "Переезд в новую квартиру2");
-        Subtask subtask5 = manager.createSubtask(epic3, "Собрать вещи", "Упаковать в коробки", Status.NEW);
-        Subtask subtask6 = manager.createSubtask(epic3, "Вызвать такси", "На 18:00", Status.NEW);
-        Subtask subtask7 = manager.createSubtask(epic3, "Загрузить в машину", "Помощь друга", Status.NEW);
+        manager.setStartTimeAndDuration(task1, start1, duration1);
+        try {
+            manager.setStartTimeAndDuration(task2, start2, duration2);
+        } catch (TimeInterectionException e) {
+            System.out.println(manager.getTasksByPriority(true));
+            System.out.println(manager.getTasksByPriority(false));
+        }
 
-
-        manager.getTask(task1.getId());
-        manager.getTask(task2.getId());
-        manager.getEpic(epic3.getId());
-        manager.getEpic(epic4.getId());
-        manager.getSubtask(subtask5.getId());
-        manager.getSubtask(subtask6.getId());
-        manager.getSubtask(subtask7.getId());
-
-        System.out.println("\n--- История запросов ---");
-        manager.getHistory();
-
-        manager.getTask(task2.getId());
-        manager.getEpic(epic3.getId());
-        manager.getSubtask(subtask6.getId());
-
-        System.out.println("\n--- История запросов ---");
-        manager.getHistory();
-
-        manager.deleteTask(1);
-        manager.deleteEpic(3);
-
-        System.out.println("\n--- История запросов ---");
-        manager.getHistory();
     }
 }

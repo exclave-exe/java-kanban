@@ -1,5 +1,7 @@
 package manager;
 
+import exceptions.NotFoundException;
+import exceptions.TimeInterectionException;
 import model.Epic;
 import model.Status;
 import model.Subtask;
@@ -74,7 +76,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Task getTask(int taskId) {
         if (allTasks.get(taskId) == null) {
-            return null;
+            throw new NotFoundException("Task c ID:" + taskId + " не найден");
         }
         inMemoryHistoryManager.add(allTasks.get(taskId));
         return allTasks.get(taskId);
@@ -83,7 +85,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Epic getEpic(int epicId) {
         if (allEpics.get(epicId) == null) {
-            return null;
+            throw new NotFoundException("Task c ID:" + epicId + " не найден");
         }
         inMemoryHistoryManager.add(allEpics.get(epicId));
         return allEpics.get(epicId);
@@ -92,7 +94,7 @@ public class InMemoryTaskManager implements TaskManager {
     @Override
     public Subtask getSubtask(int subtaskId) {
         if (allSubtasks.get(subtaskId) == null) {
-            return null;
+            throw new NotFoundException("Task c ID:" + subtaskId + " не найден");
         }
         inMemoryHistoryManager.add(allSubtasks.get(subtaskId));
         return allSubtasks.get(subtaskId);
@@ -215,13 +217,51 @@ public class InMemoryTaskManager implements TaskManager {
         }
     }
 
+    public boolean isIntersection(LocalDateTime startTime, Duration duration) {
+        if (startTime == null || duration.isZero()) {
+            return false;
+        }
+        if (tasksByPriority.isEmpty()) {
+            return false;
+        }
+        return tasksByPriority.stream()
+                .anyMatch((task) -> !startTime.isAfter(task.getEndTime()) &&
+                        !startTime.plus(duration).isBefore(task.getStartTime()));
+    }
+
     public void setStartTimeAndDuration(Task task, LocalDateTime localDateTime, Duration duration) {
-        if (isIntersection(localDateTime, duration)) {
+        // Если переданы null и 0 - сбрасываем время
+        if (localDateTime == null && duration.isZero()) {
+            if (task.getStartTime() != null && !task.getDurationTime().isZero()) {
+                tasksByPriority.remove(task);
+
+                switch (task) {
+                    case Subtask subtask -> {
+                        subtask.setDurationTime(Duration.ZERO);
+                        subtask.setStartTime(null);
+                        updateEpicStartTimeAndDuration(allEpics.get(subtask.getParentId()));
+                    }
+                    case Epic ignored -> {
+                        // Обновление Epic происходит автоматически
+                    }
+                    default -> {
+                        task.setDurationTime(Duration.ZERO);
+                        task.setStartTime(null);
+                    }
+                }
+            }
             return;
         }
 
-        if (task.getStartTime() != null) {
-            tasksByPriority.remove(task);
+        // Если один параметр null/zero, а другой нет - ошибка
+        if (localDateTime == null || duration.isZero()) {
+            throw new IllegalArgumentException("Both startTime and duration must be provided together or both must be null/zero");
+        }
+
+        tasksByPriority.remove(task);
+
+        if (isIntersection(localDateTime, duration)) {
+            throw new TimeInterectionException("Time intersection");
         }
 
         switch (task) {
@@ -258,16 +298,6 @@ public class InMemoryTaskManager implements TaskManager {
                 .allMatch(s -> s.getStatus() == Status.DONE);
 
         epic.setStatus(allNew ? Status.NEW : (allDone ? Status.DONE : Status.IN_PROGRESS));
-    }
-
-    // Приватный метод для определения пересечения.
-    private boolean isIntersection(LocalDateTime startTime, Duration duration) {
-        if (tasksByPriority.isEmpty()) {
-            return false;
-        }
-        return tasksByPriority.stream()
-                .anyMatch((task) -> !startTime.isAfter(task.getEndTime()) &&
-                        !startTime.plus(duration).isBefore(task.getStartTime()));
     }
 
     // Приватный метод для автоматической работы со временем Epic
