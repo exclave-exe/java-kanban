@@ -5,7 +5,10 @@ import model.Status;
 import model.Subtask;
 import model.Task;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 
 public interface TaskManager {
     // Метод генерации неповторяющегося ID.
@@ -53,4 +56,11 @@ public interface TaskManager {
 
     void updateDescription(Task task, String description);
 
+    List<Task> getHistory();
+
+    void setStartTimeAndDuration(Task task, LocalDateTime localDateTime, Duration duration);
+
+    boolean isIntersection(LocalDateTime startTime, Duration duration);
+
+    Set<Task> getTasksByPriority(boolean ascending);
 }

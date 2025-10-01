@@ -1,5 +1,6 @@
 package manager;
 
+import exceptions.TimeInterectionException;
 import model.Epic;
 import model.Status;
 import model.Subtask;
@@ -442,8 +443,8 @@ class InMemoryTaskManagerTest extends TaskManagerTest<InMemoryTaskManager> {
         Duration duration2 = Duration.ofHours(1);
 
         manager.setStartTimeAndDuration(task1, start1, duration1);
-        manager.setStartTimeAndDuration(task2, start2, duration2);
 
+        assertThrows(TimeInterectionException.class, () -> manager.setStartTimeAndDuration(task2, start2, duration2));
         assertFalse(manager.getTasksByPriority(true).contains(task2));
         assertFalse(manager.getTasksByPriority(false).contains(task2));
         assertNull(task2.getStartTime());
