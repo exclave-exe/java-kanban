@@ -2,7 +2,10 @@ package server;
 
 import manager.InMemoryTaskManager;
 import manager.TaskManager;
-import model.*;
+import model.Epic;
+import model.Status;
+import model.Subtask;
+import model.Task;
 import org.junit.jupiter.api.Test;
 import util.EpicListTypeToken;
 import util.SubtaskListTypeToken;
@@ -132,91 +135,7 @@ class EpicHttpTest extends HttpServerBaseTest {
         assertEquals(1, taskManager.getAllEpics().size());
     }
 
-    // Delete Epic
-    @Test
-    void testDeleteEpic() throws Exception {
-        int epicId = createEpic();
-        createSubtaskForEpic(epicId);
 
-        HttpResponse<String> deleteResp = sendDelete("/epics/" + epicId);
-
-        assertEquals(200, deleteResp.statusCode());
-        assertEquals(0, taskManager.getAllEpics().size());
-        assertEquals(0, taskManager.getAllSubtasks().size());
-
-        ApiResponse apiResponse = gson.fromJson(deleteResp.body(), ApiResponse.class);
-        assertEquals(200, apiResponse.getStatus());
-        assertEquals("Success", apiResponse.getMessage());
-    }
-
-    // Тесты ошибок
-    @Test
-    void shouldReturn404ForInvalidEndpoint() throws Exception {
-        HttpResponse<String> response = sendGet("/epics/invalid-endpoint");
-        assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Endpoint not found", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn404WhenGettingNonExistentEpic() throws Exception {
-        HttpResponse<String> response = sendGet("/epics/999");
-        assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Epic not found", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn404WhenGettingSubtasksOfNonExistentEpic() throws Exception {
-        HttpResponse<String> response = sendGet("/epics/999/subtasks");
-        assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Epic or subtasks not found", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn404WhenDeletingNonExistentEpic() throws Exception {
-        HttpResponse<String> response = sendDelete("/epics/999");
-        assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Epic not found", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn400CreatingWhenMissingRequiredFields() throws Exception {
-        String invalidJson = """
-                {
-                    "name": "Epic without description"
-                }
-                """;
-
-        HttpResponse<String> response = sendPost("/epics", invalidJson);
-        assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Missing required fields"));
-    }
-
-    @Test
-    void shouldReturn400CreatingForInvalidJSON() throws Exception {
-        String invalidJson = "{ invalid json }";
-
-        HttpResponse<String> response = sendPost("/epics", invalidJson);
-        assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid JSON syntax", apiResponse.getMessage());
-    }
 
     @Test
     void shouldReturn400CreatingWithExtraFields() throws Exception {

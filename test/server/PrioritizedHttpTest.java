@@ -2,7 +2,6 @@ package server;
 
 import manager.InMemoryTaskManager;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Task;
 import org.junit.jupiter.api.Test;
 import util.TaskListTypeToken;
@@ -191,9 +190,7 @@ class PrioritizedHttpTest extends HttpServerBaseTest {
         HttpResponse<String> response = sendGet("/prioritized/invalid");
 
         assertEquals(404, response.statusCode());
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Endpoint not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test

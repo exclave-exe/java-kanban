@@ -1,6 +1,7 @@
 package manager;
 
 import exceptions.NotFoundException;
+import exceptions.TimeArgumentException;
 import exceptions.TimeInterectionException;
 import model.Epic;
 import model.Status;
@@ -255,7 +256,7 @@ public class InMemoryTaskManager implements TaskManager {
 
         // Если один параметр null/zero, а другой нет - ошибка
         if (localDateTime == null || duration.isZero()) {
-            throw new IllegalArgumentException("Both startTime and duration must be provided together or both must be null/zero");
+            throw new TimeArgumentException("Both startTime and duration must be provided together or both must be null/zero");
         }
 
         tasksByPriority.remove(task);

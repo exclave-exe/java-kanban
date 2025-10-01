@@ -4,13 +4,14 @@ import com.google.gson.TypeAdapter;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonToken;
 import com.google.gson.stream.JsonWriter;
+import exceptions.TimeSyntaxException;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
-    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+    private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
 
     @Override
     public void write(JsonWriter jsonWriter, LocalDateTime localDateTime) throws IOException {
@@ -27,6 +28,11 @@ public class LocalDateTimeAdapter extends TypeAdapter<LocalDateTime> {
             jsonReader.nextNull(); // съедаем null
             return null;
         }
-        return LocalDateTime.parse(jsonReader.nextString(), dateTimeFormatter);
+        String dateTimeStr = jsonReader.nextString();
+        try {
+            return LocalDateTime.parse(dateTimeStr, dateTimeFormatter);
+        } catch (Exception e) {
+            throw new TimeSyntaxException("Invalid date format: " + dateTimeStr);
+        }
     }
 }

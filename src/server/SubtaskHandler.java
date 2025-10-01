@@ -1,19 +1,19 @@
 package server;
 
-import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import dto.SubtaskInput;
 import exceptions.NotFoundException;
+import exceptions.TimeArgumentException;
 import exceptions.TimeInterectionException;
+import exceptions.TimeSyntaxException;
 import manager.TaskManager;
-import model.*;
+import model.Endpoint;
+import model.Epic;
+import model.Subtask;
 
 import java.io.IOException;
-import java.time.Duration;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeParseException;
-import java.util.Arrays;
+import java.util.List;
 
 public class SubtaskHandler extends BaseHttpHandler implements HttpHandler {
 
@@ -26,187 +26,122 @@ public class SubtaskHandler extends BaseHttpHandler implements HttpHandler {
         Endpoint endpoint = determineEndpoint(exchange.getRequestMethod(), exchange.getRequestURI().getPath());
 
         switch (endpoint) {
-            case GET_ALL_SUBTASKS -> handleGetAllSubtasks(exchange);     // GET    /subtasks
-            case GET_SUBTASK -> handleGetSubtask(exchange);              // GET    /subtasks/{id}
-            case CREATE_SUBTASK -> handleCreateSubtask(exchange);        // POST   /subtasks
-            case UPDATE_SUBTASK -> handleUpdateSubtask(exchange);        // POST   /subtasks/{id}
-            case DELETE_SUBTASK -> handleDeleteSubtask(exchange);        // DELETE /subtasks/{id}
-            default -> sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Endpoint not found")));
+            case GET_ALL_SUBTASKS -> handleGetAllSubtasks(exchange);        // GET    /subtasks
+            case GET_SUBTASK -> handleGetSubtask(exchange);                 // GET    /subtasks/{id}
+            case CREATE_SUBTASK -> handleCreateSubtask(exchange);           // POST   /subtasks
+            case UPDATE_SUBTASK -> handleUpdateSubtask(exchange);           // POST   /subtasks/{id}
+            case DELETE_SUBTASK -> handleDeleteSubtask(exchange);           // DELETE /subtasks/{id}
+            default -> sendNotFound(exchange);
         }
     }
 
     // GET /subtasks
     private void handleGetAllSubtasks(HttpExchange exchange) throws IOException {
-        sendText(exchange, gson.toJson(taskManager.getAllSubtasks()));
+        List<Subtask> subtasks = taskManager.getAllSubtasks();
+        sendText(exchange, gson.toJson(subtasks));
     }
 
     // GET /subtasks/{id}
     private void handleGetSubtask(HttpExchange exchange) throws IOException {
-        int id = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
         try {
-            sendText(exchange, gson.toJson(taskManager.getSubtask(id)));
+            Subtask subtask = taskManager.getSubtask(getRequestId(exchange));
+            sendText(exchange, gson.toJson(subtask));
         } catch (NotFoundException e) {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Subtask not found")));
+            sendNotFound(exchange);
         }
     }
 
     // POST /subtasks
     private void handleCreateSubtask(HttpExchange exchange) throws IOException {
-
-        //    Предполагается что при запросе в теле будет приходить JSON следующего вида:
-        //    {
-        //        "name": "name",
-        //        "description": "description",
-        //        "status": "NEW",
-        //        "parentId": "1"
-        //        "startTime": null / "dd.MM.yyyy HH:mm:ss",
-        //        "duration": 0
-        //    }
-        //    startTime и duration должны задаваться вместе: либо оба null/0, либо оба заданы корректно,
-        //    чтобы проходить проверки.
-
-        JsonObject jsonObject = parseJson(exchange);
-        if (jsonObject == null) return;
-
-        SubtaskInput subtaskInput = parseSubtaskInput(jsonObject, exchange);
-        if (subtaskInput == null) return;
-
+        String body = readRequestBody(exchange);
         try {
-            Epic parent = taskManager.getEpic(subtaskInput.parentId);
-            Subtask subtask;
-
-            if (subtaskInput.startTime == null && subtaskInput.duration == 0) {
-                subtask = taskManager.createSubtask(parent, subtaskInput.name,
-                        subtaskInput.description, subtaskInput.status);
-                sendText(exchange, gson.toJson(subtask));
-            } else {
-                if (!taskManager.isIntersection(subtaskInput.startTime, Duration.ofMinutes(subtaskInput.duration))) {
-                    subtask = taskManager.createSubtask(parent, subtaskInput.name,
-                            subtaskInput.description, subtaskInput.status);
-                    taskManager.setStartTimeAndDuration(subtask, subtaskInput.startTime,
-                            Duration.ofMinutes(subtaskInput.duration));
-                    sendText(exchange, gson.toJson(subtask));
-                } else {
-                    throw new TimeInterectionException("Time intersection");
-                }
+            Subtask subtaskFromRequest = gson.fromJson(body, Subtask.class);
+            if (isSubtaskDataInvalid(subtaskFromRequest)) {
+                throw new IllegalArgumentException("Invalid subtask data");
+            }
+            if (isTimeInvalid(subtaskFromRequest)) {
+                throw new TimeArgumentException("Invalid time parameters");
+            }
+            if (taskManager.isIntersection(subtaskFromRequest.getStartTime(), subtaskFromRequest.getDurationTime())) {
+                throw new TimeInterectionException("Time intersection");
             }
 
-        } catch (TimeInterectionException e) {
-            sendHasOverlaps(exchange, gson.toJson(new ApiResponse(406, "Subtask time overlaps")));
-        } catch (IllegalArgumentException e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400, e.getMessage())));
-        } catch (NotFoundException e) {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Parent not found")));
+            Epic parentEpic = taskManager.getEpic(subtaskFromRequest.getParentId());
+
+            Subtask subtaskFromManager = taskManager.createSubtask(
+                    parentEpic,
+                    subtaskFromRequest.getName(),
+                    subtaskFromRequest.getDescription(),
+                    subtaskFromRequest.getStatus()
+            );
+
+            taskManager.setStartTimeAndDuration(subtaskFromManager, subtaskFromRequest.getStartTime(),
+                    subtaskFromRequest.getDurationTime());
+
+            sendText(exchange, gson.toJson(subtaskFromManager));
+
+        } catch (JsonSyntaxException exception) {
+            sendBadRequest(exchange, "Invalid Json");
+        } catch (TimeSyntaxException | IllegalArgumentException | TimeArgumentException exception) {
+            sendBadRequest(exchange, exception.getMessage());
+        } catch (TimeInterectionException exception) {
+            sendHasOverlaps(exchange);
+        } catch (NotFoundException exception) {
+            sendBadRequest(exchange, "Parent epic not found");
         }
     }
 
     // POST /subtasks/{id}
     private void handleUpdateSubtask(HttpExchange exchange) throws IOException {
-
-        //    Предполагается что при запросе в теле будет приходить JSON следующего вида:
-        //    {
-        //        "name": "name",
-        //        "description": "description",
-        //        "status": "NEW",
-        //        "parentId": "1"
-        //        "startTime": null / "dd.MM.yyyy HH:mm:ss",
-        //        "duration": 0
-        //    }
-        //    startTime и duration должны задаваться вместе: либо оба null/0, либо оба заданы корректно,
-        //    чтобы проходить проверки.
-
-        int id = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
-
-        JsonObject jsonObject = parseJson(exchange);
-        if (jsonObject == null) return;
-
-        SubtaskInput subtaskInput = parseSubtaskInput(jsonObject, exchange);
-        if (subtaskInput == null) return;
-
+        String body = readRequestBody(exchange);
         try {
-            Subtask subtask = taskManager.getSubtask(id);
-
-            if (subtask.getParentId() != subtaskInput.parentId) {
-                badRequest(exchange, gson.toJson(new ApiResponse(400, "Cannot change parentId of existing subtask")));
-                return;
+            Subtask subtaskFromRequest = gson.fromJson(body, Subtask.class);
+            if (isSubtaskDataInvalid(subtaskFromRequest)) {
+                throw new IllegalArgumentException("Invalid subtask data");
+            }
+            if (isTimeInvalid(subtaskFromRequest)) {
+                throw new TimeArgumentException("Invalid time parameters");
             }
 
-            taskManager.updateName(subtask, subtaskInput.name);
-            taskManager.updateDescription(subtask, subtaskInput.description);
-            taskManager.updateStatus(subtask, subtaskInput.status);
-            taskManager.setStartTimeAndDuration(subtask, subtaskInput.startTime, Duration.ofMinutes(subtaskInput.duration));
-            sendText(exchange, gson.toJson(subtask));
+            Subtask subtaskFromManager = taskManager.getSubtask(getRequestId(exchange));
 
-        } catch (TimeInterectionException e) {
-            sendHasOverlaps(exchange, gson.toJson(new ApiResponse(406, "Subtask time overlaps")));
-        } catch (IllegalArgumentException e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400, e.getMessage())));
-        } catch (NotFoundException e) {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Subtask not found")));
+            if (subtaskFromRequest.getParentId() != subtaskFromManager.getParentId()) {
+                throw new IllegalArgumentException("Cannot change parent epic of existing subtask");
+            }
+
+            taskManager.setStartTimeAndDuration(subtaskFromManager, subtaskFromRequest.getStartTime(),
+                    subtaskFromRequest.getDurationTime());
+            taskManager.updateName(subtaskFromManager, subtaskFromRequest.getName());
+            taskManager.updateDescription(subtaskFromManager, subtaskFromRequest.getDescription());
+            taskManager.updateStatus(subtaskFromManager, subtaskFromRequest.getStatus());
+
+            sendText(exchange, gson.toJson(subtaskFromManager));
+
+        } catch (JsonSyntaxException exception) {
+            sendBadRequest(exchange, "Invalid Json");
+        } catch (TimeSyntaxException | IllegalArgumentException | TimeArgumentException exception) {
+            sendBadRequest(exchange, exception.getMessage());
+        } catch (NotFoundException exception) {
+            sendNotFound(exchange);
+        } catch (TimeInterectionException exception) {
+            sendHasOverlaps(exchange);
         }
     }
 
     // DELETE /subtasks/{id}
     private void handleDeleteSubtask(HttpExchange exchange) throws IOException {
-        int id = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
-        boolean deleted = taskManager.deleteSubtask(id);
+        boolean deleted = taskManager.deleteSubtask(getRequestId(exchange));
         if (deleted) {
-            sendText(exchange, gson.toJson(new ApiResponse(200, "Success")));
+            sendResponse(exchange);
         } else {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Subtask not found")));
+            sendNotFound(exchange);
         }
     }
 
-    private SubtaskInput parseSubtaskInput(JsonObject jsonObject, HttpExchange exchange) throws IOException {
-        // Проверка обязательных полей
-        if (!jsonObject.has("name") || !jsonObject.has("description") ||
-                !jsonObject.has("status") || !jsonObject.has("parentId") ||
-                !jsonObject.has("startTime") || !jsonObject.has("duration")) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400,
-                    "Missing required fields: name, description, status, parentId, startTime, duration")));
-            return null;
-        }
-
-        String name = jsonObject.get("name").getAsString();
-        String description = jsonObject.get("description").getAsString();
-
-        // Status
-        Status status;
-        try {
-            status = Status.valueOf(jsonObject.get("status").getAsString().toUpperCase());
-        } catch (IllegalArgumentException e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400,
-                    "Invalid status value. Use: " + Arrays.toString(Status.values()))));
-            return null;
-        }
-
-        // ParentId
-        int parentId;
-        try {
-            parentId = jsonObject.get("parentId").getAsInt();
-        } catch (Exception e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400, "Invalid parentId value")));
-            return null;
-        }
-
-        // StartTime
-        LocalDateTime startTime = null;
-        try {
-            startTime = gson.fromJson(jsonObject.get("startTime"), LocalDateTime.class);
-        } catch (DateTimeParseException e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400,
-                    "Invalid startTime format. Expected dd.MM.yyyy HH:mm:ss")));
-        }
-
-        // Duration
-        long duration;
-        try {
-            duration = jsonObject.get("duration").getAsLong();
-        } catch (Exception e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400, "Invalid duration value")));
-            return null;
-        }
-
-        return new SubtaskInput(name, description, status, parentId, startTime, duration);
+    private boolean isSubtaskDataInvalid(Subtask subtask) {
+        return subtask.getName() == null ||
+                subtask.getDescription() == null ||
+                subtask.getStatus() == null ||
+                subtask.getParentId() <= 0;
     }
 }

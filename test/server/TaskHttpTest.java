@@ -2,7 +2,6 @@ package server;
 
 import manager.InMemoryTaskManager;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Status;
 import model.Task;
 import org.junit.jupiter.api.Test;
@@ -28,9 +27,7 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "Contain",
                     "description": "Desc",
-                    "status": "NEW",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "NEW"
                 }
                 """;
         sendPost("/tasks", taskJson);
@@ -60,9 +57,7 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "WithoutTime",
                     "description": "Test Description",
-                    "status": "NEW",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "NEW"
                 }
                 """;
 
@@ -73,7 +68,7 @@ class TaskHttpTest extends HttpServerBaseTest {
         assertEquals("WithoutTime", createdTask.getName());
         assertEquals("Test Description", createdTask.getDescription());
         assertEquals(Status.NEW, createdTask.getStatus());
-        assertEquals(0, createdTask.getDurationTime().toMinutes());
+        assertEquals(Duration.ZERO, createdTask.getDurationTime());
         assertNull(createdTask.getStartTime());
         assertEquals(1, taskManager.getAllTasks().size());
     }
@@ -109,9 +104,7 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "Old Name",
                     "description": "Old Desc",
-                    "status": "NEW",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "NEW"
                 }
                 """;
         sendPost("/tasks", taskJson);
@@ -215,16 +208,37 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "To Delete",
                     "description": "Desc",
-                    "status": "NEW",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "NEW"
                 }
                 """;
         sendPost("/tasks", taskJson);
         int taskId = taskManager.getAllTasks().get(0).getId();
         HttpResponse<String> deleteResp = sendDelete("/tasks/" + taskId);
-        assertEquals(200, deleteResp.statusCode());
+        assertEquals(201, deleteResp.statusCode());
         assertEquals(0, taskManager.getAllTasks().size());
+    }
+
+    @Test
+    void testGetTaskById() throws Exception {
+        String taskJson = """
+                {
+                    "name": "Test Task",
+                    "description": "Test Description",
+                    "status": "IN_PROGRESS"
+                }
+                """;
+        HttpResponse<String> postResp = sendPost("/tasks", taskJson);
+        Task createdTask = gson.fromJson(postResp.body(), Task.class);
+        int taskId = createdTask.getId();
+
+        HttpResponse<String> getResp = sendGet("/tasks/" + taskId);
+
+        assertEquals(200, getResp.statusCode());
+        Task retrievedTask = gson.fromJson(getResp.body(), Task.class);
+        assertEquals(createdTask, retrievedTask);
+        assertEquals("Test Task", retrievedTask.getName());
+        assertEquals("Test Description", retrievedTask.getDescription());
+        assertEquals(Status.IN_PROGRESS, retrievedTask.getStatus());
     }
 
     // Тесты ошибок
@@ -232,20 +246,14 @@ class TaskHttpTest extends HttpServerBaseTest {
     void shouldReturn404ForInvalidEndpoint() throws Exception {
         HttpResponse<String> response = sendGet("/tasks/invalid-endpoint");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Endpoint not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
     void shouldReturn404WhenGettingNonExistentTask() throws Exception {
         HttpResponse<String> response = sendGet("/tasks/999");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Task not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
@@ -254,28 +262,20 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "Updated Task",
                     "description": "Updated Description",
-                    "status": "IN_PROGRESS",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "IN_PROGRESS"
                 }
                 """;
 
         HttpResponse<String> response = sendPost("/tasks/999", updateJson);
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Task not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
     void shouldReturn404WhenDeletingNonExistentTask() throws Exception {
         HttpResponse<String> response = sendDelete("/tasks/999");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Task not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
@@ -303,10 +303,7 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/tasks", task2Json);
         assertEquals(406, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(406, apiResponse.getStatus());
-        assertEquals("Task time overlaps", apiResponse.getMessage());
+        assertTrue(response.body().contains("Task time overlaps"));
     }
 
     @Test
@@ -328,9 +325,7 @@ class TaskHttpTest extends HttpServerBaseTest {
                 {
                     "name": "Task2",
                     "description": "Desc",
-                    "status": "NEW",
-                    "startTime": null,
-                    "duration": 0
+                    "status": "NEW"
                 }
                 """;
         HttpResponse<String> task2Resp = sendPost("/tasks", task2Json);
@@ -349,14 +344,11 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/tasks/" + task2Id, overlapJson);
         assertEquals(406, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(406, apiResponse.getStatus());
-        assertEquals("Task time overlaps", apiResponse.getMessage());
+        assertTrue(response.body().contains("Task time overlaps"));
     }
 
     @Test
-    void shouldReturn400WhenCreatingIncorrectDurationAndStarTime() throws Exception {
+    void shouldReturn400WhenCreatingIncorrectDurationAndStartTime() throws Exception {
         String task1Json = """
                 {
                     "name": "First Task",
@@ -380,10 +372,7 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response1 = sendPost("/tasks", task2Json);
         assertEquals(400, response1.statusCode());
-        ApiResponse apiResponse1 = gson.fromJson(response1.body(), ApiResponse.class);
-        assertEquals(400, apiResponse1.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse1.getMessage());
+        assertTrue(response1.body().contains("Invalid time parameters"));
 
         String task3Json = """
                 {
@@ -397,14 +386,11 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response2 = sendPost("/tasks", task3Json);
         assertEquals(400, response2.statusCode());
-        ApiResponse apiResponse2 = gson.fromJson(response2.body(), ApiResponse.class);
-        assertEquals(400, apiResponse2.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse2.getMessage());
+        assertTrue(response2.body().contains("Invalid time parameters"));
     }
 
     @Test
-    void shouldReturn400WhenUpdatingIncorrectDurationAndStarTime() throws Exception {
+    void shouldReturn400WhenUpdatingIncorrectDurationAndStartTime() throws Exception {
         String task1Json = """
                 {
                     "name": "First Task",
@@ -429,10 +415,7 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response1 = sendPost("/tasks/" + idTask, task2Json);
         assertEquals(400, response1.statusCode());
-        ApiResponse apiResponse1 = gson.fromJson(response1.body(), ApiResponse.class);
-        assertEquals(400, apiResponse1.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse1.getMessage());
+        assertTrue(response1.body().contains("Invalid time parameters"));
 
         String task3Json = """
                 {
@@ -446,150 +429,120 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response2 = sendPost("/tasks/" + idTask, task3Json);
         assertEquals(400, response2.statusCode());
-        ApiResponse apiResponse2 = gson.fromJson(response2.body(), ApiResponse.class);
-        assertEquals(400, apiResponse2.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse2.getMessage());
+        assertTrue(response2.body().contains("Invalid time parameters"));
     }
 
     @Test
     void shouldReturn400CreatingWhenMissingRequiredFields() throws Exception {
         String invalidJson = """
-                    {
-                        "name": "Task without status"
-                    }
+                {
+                    "name": "Task without status"
+                }
                 """;
 
         HttpResponse<String> response = sendPost("/tasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Missing required fields"));
+        assertTrue(response.body().contains("Invalid task data"));
     }
 
     @Test
     void shouldReturn400UpdatingWhenMissingRequiredFields() throws Exception {
         sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW"
+                }
                 """);
         int idTask = taskManager.getAllTasks().getFirst().getId();
         String invalidJson = """
-                    {
-                        "name": "Task without status"
-                    }
+                {
+                    "name": "Task without status"
+                }
                 """;
 
         HttpResponse<String> response = sendPost("/tasks/" + idTask, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Missing required fields"));
+        assertTrue(response.body().contains("Invalid task data"));
     }
 
     @Test
     void shouldReturn400WhenUpdateInvalidStatusValue() throws Exception {
         sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW"
+                }
                 """);
         int idTask = taskManager.getAllTasks().getFirst().getId();
         String invalidJson = """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "INVALID",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "INVALID"
+                }
                 """;
 
         HttpResponse<String> response = sendPost("/tasks/" + idTask, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid status value", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid task data") || response.body().contains("Invalid Json"));
     }
 
     @Test
     void shouldReturn400WhenCreateInvalidStatusValue() throws Exception {
         HttpResponse<String> response = sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "INVALID",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "INVALID"
+                }
                 """);
 
         assertEquals(400, response.statusCode());
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid status value", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid task data") || response.body().contains("Invalid Json"));
     }
-
 
     @Test
     void shouldReturn400WhenUpdateInvalidStartTimeFormat() throws Exception {
         sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW"
+                }
                 """);
         int idTask = taskManager.getAllTasks().getFirst().getId();
 
         String invalidJson = """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": "2024-01-01 10:00:00",
-                        "duration": 60
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW",
+                    "startTime": "2024-01-01 10:00:00",
+                    "duration": 60
+                }
                 """;
 
         HttpResponse<String> response = sendPost("/tasks/" + idTask, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid startTime format"));
+        assertTrue(response.body().contains("Invalid date format"));
     }
 
     @Test
     void shouldReturn400WhenCreateInvalidStartTimeFormat() throws Exception {
         HttpResponse<String> response = sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": "2024-01-01 10:00:00",
-                        "duration": 60
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW",
+                    "startTime": "2024-01-01 10:00:00",
+                    "duration": 60
+                }
                 """);
 
         assertEquals(400, response.statusCode());
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid startTime format"));
+        assertTrue(response.body().contains("Invalid date format"));
     }
 
     @Test
@@ -598,32 +551,25 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/tasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid JSON syntax", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
     void shouldReturn400UpdatingForInvalidJSON() throws Exception {
         sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW"
+                }
                 """);
         int idTask = taskManager.getAllTasks().getFirst().getId();
+        System.out.println(idTask);
         String invalidJson = "{ invalid json }";
 
         HttpResponse<String> response = sendPost("/tasks/" + idTask, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid JSON syntax", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -640,22 +586,17 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/tasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid duration value", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
     void shouldReturn400WhenUpdateInvalidDuration() throws Exception {
         sendPost("/tasks", """
-                    {
-                        "name": "Task",
-                        "description": "Desc",
-                        "status": "NEW",
-                        "startTime": null,
-                        "duration": 0
-                    }
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": "NEW"
+                }
                 """);
         int idTask = taskManager.getAllTasks().getFirst().getId();
         String invalidJson = """
@@ -670,9 +611,114 @@ class TaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/tasks/" + idTask, invalidJson);
         assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Invalid Json"));
+    }
 
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid duration value", apiResponse.getMessage());
+    // Дополнительные тесты для полного покрытия
+
+    @Test
+    void shouldReturn400WhenCreatingTaskWithNullName() throws Exception {
+        String invalidJson = """
+                {
+                    "name": null,
+                    "description": "Desc",
+                    "status": "NEW"
+                }
+                """;
+
+        HttpResponse<String> response = sendPost("/tasks", invalidJson);
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Invalid task data"));
+    }
+
+    @Test
+    void shouldReturn400WhenCreatingTaskWithNullDescription() throws Exception {
+        String invalidJson = """
+                {
+                    "name": "Task",
+                    "description": null,
+                    "status": "NEW"
+                }
+                """;
+
+        HttpResponse<String> response = sendPost("/tasks", invalidJson);
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Invalid task data"));
+    }
+
+    @Test
+    void shouldReturn400WhenCreatingTaskWithNullStatus() throws Exception {
+        String invalidJson = """
+                {
+                    "name": "Task",
+                    "description": "Desc",
+                    "status": null
+                }
+                """;
+
+        HttpResponse<String> response = sendPost("/tasks", invalidJson);
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Invalid task data"));
+    }
+
+    @Test
+    void testUpdateTaskWithoutChangingTime() throws Exception {
+        String taskJson = """
+                {
+                    "name": "Original Task",
+                    "description": "Original Desc",
+                    "status": "NEW",
+                    "startTime": "01.01.2020 10:00:00",
+                    "duration": 30
+                }
+                """;
+        sendPost("/tasks", taskJson);
+        int taskId = taskManager.getAllTasks().getFirst().getId();
+
+        String updateJson = """
+                {
+                    "name": "Updated Task",
+                    "description": "Updated Desc",
+                    "status": "DONE"
+                }
+                """;
+
+        HttpResponse<String> updateResp = sendPost("/tasks/" + taskId, updateJson);
+
+        assertEquals(200, updateResp.statusCode());
+        Task updatedTask = gson.fromJson(updateResp.body(), Task.class);
+        assertEquals("Updated Task", updatedTask.getName());
+        assertEquals("Updated Desc", updatedTask.getDescription());
+        assertEquals(Status.DONE, updatedTask.getStatus());
+        assertEquals(0, updatedTask.getDurationTime().toMinutes());
+        assertNull(updatedTask.getStartTime());
+    }
+
+    @Test
+    void testCreateMultipleTasks() throws Exception {
+        String task1Json = """
+                {
+                    "name": "Task 1",
+                    "description": "Desc 1",
+                    "status": "NEW"
+                }
+                """;
+        String task2Json = """
+                {
+                    "name": "Task 2",
+                    "description": "Desc 2",
+                    "status": "IN_PROGRESS"
+                }
+                """;
+
+        sendPost("/tasks", task1Json);
+        sendPost("/tasks", task2Json);
+
+        HttpResponse<String> getResp = sendGet("/tasks");
+        List<Task> tasks = gson.fromJson(getResp.body(), new TaskListTypeToken().getType());
+
+        assertEquals(200, getResp.statusCode());
+        assertEquals(2, tasks.size());
+        assertEquals(2, taskManager.getAllTasks().size());
     }
 }

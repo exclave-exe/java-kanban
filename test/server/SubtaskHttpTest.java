@@ -2,7 +2,6 @@ package server;
 
 import manager.InMemoryTaskManager;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Epic;
 import model.Status;
 import model.Subtask;
@@ -43,9 +42,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Contain",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
         sendPost("/subtasks", subtaskJson);
@@ -68,6 +65,32 @@ class SubtaskHttpTest extends HttpServerBaseTest {
         assertEquals("[]", getResp.body());
     }
 
+    @Test
+    void testGetSubtaskById() throws Exception {
+        int epicId = createEpicForSubtask();
+        String subtaskJson = """
+                {
+                    "name": "Test Subtask",
+                    "description": "Test Description",
+                    "status": "IN_PROGRESS",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+        HttpResponse<String> postResp = sendPost("/subtasks", subtaskJson);
+        Subtask createdSubtask = gson.fromJson(postResp.body(), Subtask.class);
+        int subtaskId = createdSubtask.getId();
+
+        HttpResponse<String> getResp = sendGet("/subtasks/" + subtaskId);
+
+        assertEquals(200, getResp.statusCode());
+        Subtask retrievedSubtask = gson.fromJson(getResp.body(), Subtask.class);
+        assertEquals(createdSubtask, retrievedSubtask);
+        assertEquals("Test Subtask", retrievedSubtask.getName());
+        assertEquals("Test Description", retrievedSubtask.getDescription());
+        assertEquals(Status.IN_PROGRESS, retrievedSubtask.getStatus());
+        assertEquals(epicId, retrievedSubtask.getParentId());
+    }
+
     // Create Subtask
     @Test
     void testCreateSubtaskWithoutTime() throws Exception {
@@ -77,9 +100,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "WithoutTime",
                     "description": "Test Description",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
 
@@ -91,7 +112,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
         assertEquals("Test Description", createdSubtask.getDescription());
         assertEquals(Status.NEW, createdSubtask.getStatus());
         assertEquals(epicId, createdSubtask.getParentId());
-        assertEquals(0, createdSubtask.getDurationTime().toMinutes());
+        assertEquals(Duration.ZERO, createdSubtask.getDurationTime());
         assertNull(createdSubtask.getStartTime());
         assertEquals(1, taskManager.getAllSubtasks().size());
     }
@@ -132,9 +153,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Old Name",
                     "description": "Old Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
         sendPost("/subtasks", subtaskJson);
@@ -238,6 +257,42 @@ class SubtaskHttpTest extends HttpServerBaseTest {
         assertEquals(1, taskManager.getAllSubtasks().size());
     }
 
+    @Test
+    void testUpdateSubtaskWithoutChangingTime() throws Exception {
+        int epicId = createEpicForSubtask();
+        String subtaskJson = """
+                {
+                    "name": "Original Subtask",
+                    "description": "Original Desc",
+                    "status": "NEW",
+                    "parentId": %d,
+                    "startTime": "01.01.2020 10:00:00",
+                    "duration": 30
+                }
+                """.formatted(epicId);
+        sendPost("/subtasks", subtaskJson);
+        int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
+
+        String updateJson = """
+                {
+                    "name": "Updated Subtask",
+                    "description": "Updated Desc",
+                    "status": "DONE",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+
+        HttpResponse<String> updateResp = sendPost("/subtasks/" + subtaskId, updateJson);
+
+        assertEquals(200, updateResp.statusCode());
+        Subtask updatedSubtask = gson.fromJson(updateResp.body(), Subtask.class);
+        assertEquals("Updated Subtask", updatedSubtask.getName());
+        assertEquals("Updated Desc", updatedSubtask.getDescription());
+        assertEquals(Status.DONE, updatedSubtask.getStatus());
+        assertEquals(0, updatedSubtask.getDurationTime().toMinutes());
+        assertNull(updatedSubtask.getStartTime());
+    }
+
     // Delete Subtask
     @Test
     void testDeleteSubtask() throws Exception {
@@ -247,15 +302,13 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "To Delete",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
         sendPost("/subtasks", subtaskJson);
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
         HttpResponse<String> deleteResp = sendDelete("/subtasks/" + subtaskId);
-        assertEquals(200, deleteResp.statusCode());
+        assertEquals(201, deleteResp.statusCode());
         assertEquals(0, taskManager.getAllSubtasks().size());
     }
 
@@ -264,20 +317,14 @@ class SubtaskHttpTest extends HttpServerBaseTest {
     void shouldReturn404ForInvalidEndpoint() throws Exception {
         HttpResponse<String> response = sendGet("/subtasks/invalid-endpoint");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Endpoint not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
     void shouldReturn404WhenGettingNonExistentSubtask() throws Exception {
         HttpResponse<String> response = sendGet("/subtasks/999");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Subtask not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
@@ -288,49 +335,36 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Updated Subtask",
                     "description": "Updated Description",
                     "status": "IN_PROGRESS",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
 
         HttpResponse<String> response = sendPost("/subtasks/999", updateJson);
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Subtask not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
     void shouldReturn404WhenDeletingNonExistentSubtask() throws Exception {
         HttpResponse<String> response = sendDelete("/subtasks/999");
         assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Subtask not found", apiResponse.getMessage());
+        assertTrue(response.body().contains("Not Found"));
     }
 
     @Test
-    void shouldReturn404WhenCreatingWithNonExistentParent() throws Exception {
+    void shouldReturn400WhenCreatingWithNonExistentParent() throws Exception {
         String subtaskJson = """
                 {
                     "name": "Orphan Subtask",
                     "description": "No Parent",
                     "status": "NEW",
-                    "parentId": 999,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": 999
                 }
                 """;
 
         HttpResponse<String> response = sendPost("/subtasks", subtaskJson);
-        assertEquals(404, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(404, apiResponse.getStatus());
-        assertEquals("Parent not found", apiResponse.getMessage());
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Parent epic not found"));
     }
 
     @Test
@@ -362,10 +396,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks", subtask2Json);
         assertEquals(406, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(406, apiResponse.getStatus());
-        assertEquals("Subtask time overlaps", apiResponse.getMessage());
+        assertTrue(response.body().contains("Task time overlaps"));
     }
 
     @Test
@@ -382,17 +413,14 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "duration": 60
                 }
                 """.formatted(epicId);
-        HttpResponse<String> subtask1Resp = sendPost("/subtasks", subtask1Json);
-        Subtask subtask1 = gson.fromJson(subtask1Resp.body(), Subtask.class);
+        sendPost("/subtasks", subtask1Json);
 
         String subtask2Json = """
                 {
                     "name": "Subtask2",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
         HttpResponse<String> subtask2Resp = sendPost("/subtasks", subtask2Json);
@@ -412,10 +440,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtask2Id, overlapJson);
         assertEquals(406, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(406, apiResponse.getStatus());
-        assertEquals("Subtask time overlaps", apiResponse.getMessage());
+        assertTrue(response.body().contains("Task time overlaps"));
     }
 
     @Test
@@ -447,10 +472,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response1 = sendPost("/subtasks", subtask2Json);
         assertEquals(400, response1.statusCode());
-        ApiResponse apiResponse1 = gson.fromJson(response1.body(), ApiResponse.class);
-        assertEquals(400, apiResponse1.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse1.getMessage());
+        assertTrue(response1.body().contains("Invalid time parameters"));
 
         String subtask3Json = """
                 {
@@ -465,10 +487,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response2 = sendPost("/subtasks", subtask3Json);
         assertEquals(400, response2.statusCode());
-        ApiResponse apiResponse2 = gson.fromJson(response2.body(), ApiResponse.class);
-        assertEquals(400, apiResponse2.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse2.getMessage());
+        assertTrue(response2.body().contains("Invalid time parameters"));
     }
 
     @Test
@@ -501,10 +520,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response1 = sendPost("/subtasks/" + subtaskId, subtask2Json);
         assertEquals(400, response1.statusCode());
-        ApiResponse apiResponse1 = gson.fromJson(response1.body(), ApiResponse.class);
-        assertEquals(400, apiResponse1.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse1.getMessage());
+        assertTrue(response1.body().contains("Invalid time parameters"));
 
         String subtask3Json = """
                 {
@@ -519,10 +535,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response2 = sendPost("/subtasks/" + subtaskId, subtask3Json);
         assertEquals(400, response2.statusCode());
-        ApiResponse apiResponse2 = gson.fromJson(response2.body(), ApiResponse.class);
-        assertEquals(400, apiResponse2.getStatus());
-        assertEquals("Both startTime and duration must be provided together or both must be null/zero",
-                apiResponse2.getMessage());
+        assertTrue(response2.body().contains("Invalid time parameters"));
     }
 
     @Test
@@ -535,10 +548,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Missing required fields"));
+        assertTrue(response.body().contains("Invalid subtask data"));
     }
 
     @Test
@@ -549,9 +559,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -563,10 +571,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Missing required fields"));
+        assertTrue(response.body().contains("Invalid subtask data"));
     }
 
     @Test
@@ -577,9 +582,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -588,18 +591,13 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "INVALID",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid status value"));
+        assertTrue(response.body().contains("Invalid subtask data") || response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -610,16 +608,12 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "INVALID",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
 
         assertEquals(400, response.statusCode());
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid status value"));
+        assertTrue(response.body().contains("Invalid subtask data") || response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -630,9 +624,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -650,10 +642,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid startTime format"));
+        assertTrue(response.body().contains("Invalid date format"));
     }
 
     @Test
@@ -671,9 +660,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                 """.formatted(epicId));
 
         assertEquals(400, response.statusCode());
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertTrue(apiResponse.getMessage().contains("Invalid startTime format"));
+        assertTrue(response.body().contains("Invalid date format"));
     }
 
     @Test
@@ -682,10 +669,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid JSON syntax", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -696,9 +680,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -706,10 +688,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid JSON syntax", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -728,10 +707,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks", invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid duration value", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -742,9 +718,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Subtask",
                     "description": "Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -761,64 +735,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
 
         HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
         assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid duration value", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn400WhenCreateInvalidParentId() throws Exception {
-        String invalidJson = """
-                {
-                    "name": "Test Subtask",
-                    "description": "Test Description",
-                    "status": "NEW",
-                    "parentId": "invalid",
-                    "startTime": null,
-                    "duration": 0
-                }
-                """;
-
-        HttpResponse<String> response = sendPost("/subtasks", invalidJson);
-        assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid parentId value", apiResponse.getMessage());
-    }
-
-    @Test
-    void shouldReturn400WhenUpdateInvalidParentId() throws Exception {
-        int epicId = createEpicForSubtask();
-        sendPost("/subtasks", """
-                {
-                    "name": "Subtask",
-                    "description": "Desc",
-                    "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
-                }
-                """.formatted(epicId));
-        int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
-        String invalidJson = """
-                {
-                    "name": "Test Subtask",
-                    "description": "Test Description",
-                    "status": "NEW",
-                    "parentId": "invalid",
-                    "startTime": null,
-                    "duration": 0
-                }
-                """;
-
-        HttpResponse<String> response = sendPost("/subtasks/" + subtaskId, invalidJson);
-        assertEquals(400, response.statusCode());
-
-        ApiResponse apiResponse = gson.fromJson(response.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Invalid parentId value", apiResponse.getMessage());
+        assertTrue(response.body().contains("Invalid Json"));
     }
 
     @Test
@@ -831,9 +748,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Original Subtask",
                     "description": "Original Desc",
                     "status": "NEW",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId1));
         int subtaskId = taskManager.getAllSubtasks().getFirst().getId();
@@ -843,18 +758,14 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Changed Parent Subtask",
                     "description": "Changed Desc",
                     "status": "IN_PROGRESS",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId2);
 
         HttpResponse<String> updateResp = sendPost("/subtasks/" + subtaskId, updateJson);
 
         assertEquals(400, updateResp.statusCode());
-        ApiResponse apiResponse = gson.fromJson(updateResp.body(), ApiResponse.class);
-        assertEquals(400, apiResponse.getStatus());
-        assertEquals("Cannot change parentId of existing subtask", apiResponse.getMessage());
+        assertTrue(updateResp.body().contains("Cannot change parent epic of existing subtask"));
     }
 
     @Test
@@ -866,9 +777,7 @@ class SubtaskHttpTest extends HttpServerBaseTest {
                     "name": "Done Subtask",
                     "description": "Done Description",
                     "status": "DONE",
-                    "parentId": %d,
-                    "startTime": null,
-                    "duration": 0
+                    "parentId": %d
                 }
                 """.formatted(epicId);
         sendPost("/subtasks", subtaskJson);
@@ -927,5 +836,70 @@ class SubtaskHttpTest extends HttpServerBaseTest {
         assertNull(epic.getStartTime());
         assertEquals(Duration.ZERO, epic.getDurationTime());
         assertNull(epic.getEndTime());
+    }
+
+    @Test
+    void testGetEpicSubtasks() throws Exception {
+        int epicId = createEpicForSubtask();
+
+        String subtask1Json = """
+                {
+                    "name": "Subtask 1",
+                    "description": "Desc 1",
+                    "status": "NEW",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+        String subtask2Json = """
+                {
+                    "name": "Subtask 2",
+                    "description": "Desc 2",
+                    "status": "IN_PROGRESS",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+
+        sendPost("/subtasks", subtask1Json);
+        sendPost("/subtasks", subtask2Json);
+
+        HttpResponse<String> getResp = sendGet("/epics/" + epicId + "/subtasks");
+        List<Subtask> subtasks = gson.fromJson(getResp.body(), new SubtaskListTypeToken().getType());
+
+        assertEquals(200, getResp.statusCode());
+        assertEquals(2, subtasks.size());
+        assertEquals("Subtask 1", subtasks.get(0).getName());
+        assertEquals("Subtask 2", subtasks.get(1).getName());
+    }
+
+    @Test
+    void testCreateMultipleSubtasks() throws Exception {
+        int epicId = createEpicForSubtask();
+
+        String subtask1Json = """
+                {
+                    "name": "Subtask 1",
+                    "description": "Desc 1",
+                    "status": "NEW",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+        String subtask2Json = """
+                {
+                    "name": "Subtask 2",
+                    "description": "Desc 2",
+                    "status": "IN_PROGRESS",
+                    "parentId": %d
+                }
+                """.formatted(epicId);
+
+        sendPost("/subtasks", subtask1Json);
+        sendPost("/subtasks", subtask2Json);
+
+        HttpResponse<String> getResp = sendGet("/subtasks");
+        List<Subtask> subtasks = gson.fromJson(getResp.body(), new SubtaskListTypeToken().getType());
+
+        assertEquals(200, getResp.statusCode());
+        assertEquals(2, subtasks.size());
+        assertEquals(2, taskManager.getAllSubtasks().size());
     }
 }

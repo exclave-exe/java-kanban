@@ -1,19 +1,16 @@
 package server;
 
-import com.google.gson.JsonObject;
+import com.google.gson.JsonSyntaxException;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
-import dto.EpicInput;
 import exceptions.NotFoundException;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Endpoint;
 import model.Epic;
 import model.Subtask;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class EpicHandler extends BaseHttpHandler implements HttpHandler {
 
@@ -31,80 +28,74 @@ public class EpicHandler extends BaseHttpHandler implements HttpHandler {
             case GET_EPIC_SUBTASKS -> handleGetEpicSubtasks(exchange);   // GET    /epics/{id}/subtasks
             case CREATE_EPIC -> handleCreateEpic(exchange);              // POST   /epics
             case DELETE_EPIC -> handleDeleteEpic(exchange);              // DELETE /epics/{id}
-            default -> sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Endpoint not found")));
+            default -> sendNotFound(exchange);
         }
     }
 
     // GET /epics
     private void handleGetAllEpics(HttpExchange exchange) throws IOException {
-        sendText(exchange, gson.toJson(taskManager.getAllEpics()));
+        List<Epic> epics = taskManager.getAllEpics();
+        sendText(exchange, gson.toJson(epics));
     }
 
     // GET /epics/{id}
     private void handleGetEpic(HttpExchange exchange) throws IOException {
-        int id = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
         try {
-            sendText(exchange, gson.toJson(taskManager.getEpic(id)));
+            Epic epic = taskManager.getEpic(getRequestId(exchange));
+            sendText(exchange, gson.toJson(epic));
         } catch (NotFoundException e) {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Epic not found")));
+            sendNotFound(exchange);
         }
     }
 
     // GET /epics/{id}/subtasks
     private void handleGetEpicSubtasks(HttpExchange exchange) throws IOException {
-        int epicId = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
         try {
-            Epic epic = taskManager.getEpic(epicId);
+            Epic epic = taskManager.getEpic(getRequestId(exchange));
             List<Subtask> subtasks = epic.getSubtasksId().stream()
                     .map(taskManager::getSubtask)
-                    .collect(Collectors.toList());
+                    .toList();
             sendText(exchange, gson.toJson(subtasks));
         } catch (NotFoundException e) {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Epic or subtasks not found")));
+            sendNotFound(exchange);
         }
     }
 
     // POST /epics
     private void handleCreateEpic(HttpExchange exchange) throws IOException {
+        String body = readRequestBody(exchange);
+        try {
+            Epic epicFromRequest = gson.fromJson(body, Epic.class);
+            if (isEpicDataInvalid(epicFromRequest)) {
+                throw new IllegalArgumentException("Invalid epic data");
+            }
 
-        //    Предполагается что при запросе в теле будет приходить JSON следующего вида:
-        //    {
-        //        "name": "name",
-        //        "description": "description"
-        //    }
+            Epic epicFromManager = taskManager.createEpic(
+                    epicFromRequest.getName(),
+                    epicFromRequest.getDescription()
+            );
 
-        JsonObject jsonObject = parseJson(exchange);
-        if (jsonObject == null) return;
+            sendText(exchange, gson.toJson(epicFromManager));
 
-        EpicInput epicInput = parseEpicInput(jsonObject, exchange);
-        if (epicInput == null) return;
-
-        Epic epic = taskManager.createEpic(epicInput.name, epicInput.description);
-        sendText(exchange, gson.toJson(epic));
+        } catch (JsonSyntaxException exception) {
+            sendBadRequest(exchange, "Invalid Json");
+        } catch (IllegalArgumentException exception) {
+            sendBadRequest(exchange, exception.getMessage());
+        }
     }
 
     // DELETE /epics/{id}
     private void handleDeleteEpic(HttpExchange exchange) throws IOException {
-        int id = Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
-        boolean deleted = taskManager.deleteEpic(id);
+        boolean deleted = taskManager.deleteEpic(getRequestId(exchange));
         if (deleted) {
-            sendText(exchange, gson.toJson(new ApiResponse(200, "Success")));
+            sendResponse(exchange);
         } else {
-            sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Epic not found")));
+            sendNotFound(exchange);
         }
     }
 
-    private EpicInput parseEpicInput(JsonObject jsonObject, HttpExchange exchange) throws IOException {
-        // Проверка обязательных полей
-        if (!jsonObject.has("name") || !jsonObject.has("description")) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400,
-                    "Missing required fields: name, description")));
-            return null;
-        }
-
-        String name = jsonObject.get("name").getAsString();
-        String description = jsonObject.get("description").getAsString();
-
-        return new EpicInput(name, description);
+    private boolean isEpicDataInvalid(Epic epic) {
+        return epic.getName() == null ||
+                epic.getDescription() == null;
     }
 }

@@ -1,10 +1,11 @@
 package server;
 
-import com.google.gson.*;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.sun.net.httpserver.HttpExchange;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Endpoint;
+import model.Task;
 import util.LocalDateTimeAdapter;
 
 import java.io.IOException;
@@ -25,44 +26,49 @@ public abstract class BaseHttpHandler {
         this.taskManager = taskManager;
     }
 
-    protected void sendText(HttpExchange httpExchange, String text) throws IOException {
+    protected void sendText(HttpExchange exchange, String text) throws IOException {
         byte[] resp = text.getBytes(StandardCharsets.UTF_8);
-        httpExchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
-        httpExchange.sendResponseHeaders(200, resp.length);
-        httpExchange.getResponseBody().write(resp);
-        httpExchange.close();
+        exchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
+        exchange.sendResponseHeaders(200, resp.length);
+        exchange.getResponseBody().write(resp);
+        exchange.close();
     }
 
-    protected void sendNotFound(HttpExchange httpExchange, String text) throws IOException {
-        byte[] resp = text.getBytes(StandardCharsets.UTF_8);
-        httpExchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
-        httpExchange.sendResponseHeaders(404, resp.length);
-        httpExchange.getResponseBody().write(resp);
-        httpExchange.close();
+    protected void sendBadRequest(HttpExchange exchange, String text) throws IOException {
+        byte[] resp = ("{\"error\":\"%s\"}".formatted(text)).getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
+        exchange.sendResponseHeaders(400, resp.length);
+        exchange.getResponseBody().write(resp);
+        exchange.close();
     }
 
-    protected void sendHasOverlaps(HttpExchange httpExchange, String text) throws IOException {
-        byte[] resp = text.getBytes(StandardCharsets.UTF_8);
-        httpExchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
-        httpExchange.sendResponseHeaders(406, resp.length);
-        httpExchange.getResponseBody().write(resp);
-        httpExchange.close();
+    protected void sendNotFound(HttpExchange exchange) throws IOException {
+        byte[] resp = "{\"error\":\"Not Found\"}".getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
+        exchange.sendResponseHeaders(404, resp.length);
+        exchange.getResponseBody().write(resp);
+        exchange.close();
     }
 
-    protected void badRequest(HttpExchange httpExchange, String text) throws IOException {
-        byte[] resp = text.getBytes(StandardCharsets.UTF_8);
-        httpExchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
-        httpExchange.sendResponseHeaders(400, resp.length);
-        httpExchange.getResponseBody().write(resp);
-        httpExchange.close();
+    protected void sendHasOverlaps(HttpExchange exchange) throws IOException {
+        byte[] resp = "{\"error\":\"Task time overlaps\"}".getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
+        exchange.sendResponseHeaders(406, resp.length);
+        exchange.getResponseBody().write(resp);
+        exchange.close();
     }
 
-    protected void internalServerError(HttpExchange httpExchange, String text) throws IOException {
-        byte[] resp = text.getBytes(StandardCharsets.UTF_8);
-        httpExchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
-        httpExchange.sendResponseHeaders(500, resp.length);
-        httpExchange.getResponseBody().write(resp);
-        httpExchange.close();
+    protected void sendServerError(HttpExchange exchange) throws IOException {
+        byte[] resp = "{\"error\":\"Internal Server Error\"}".getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json;charset=utf-8");
+        exchange.sendResponseHeaders(500, resp.length);
+        exchange.getResponseBody().write(resp);
+        exchange.close();
+    }
+
+    protected void sendResponse(HttpExchange exchange) throws IOException {
+        exchange.sendResponseHeaders(201, -1);
+        exchange.close();
     }
 
     protected Endpoint determineEndpoint(String method, String path) {
@@ -129,30 +135,6 @@ public abstract class BaseHttpHandler {
         }
     }
 
-    protected JsonObject parseJson(HttpExchange exchange) throws IOException {
-        InputStream inputStream = exchange.getRequestBody();
-        JsonElement jsonElement;
-
-        try {
-            jsonElement = JsonParser.parseString(new String(inputStream.readAllBytes(), StandardCharsets.UTF_8));
-        } catch (JsonSyntaxException e) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400, "Invalid JSON syntax")));
-            return null;
-        } catch (IOException e) {
-            internalServerError(exchange, gson.toJson(new ApiResponse(500,
-                    "Error reading request body")));
-            return null;
-        }
-
-        if (!jsonElement.isJsonObject()) {
-            badRequest(exchange, gson.toJson(new ApiResponse(400,
-                    "Invalid JSON: expected JSON object")));
-            return null;
-        }
-
-        return jsonElement.getAsJsonObject();
-    }
-
     private boolean isNumber(String string) {
         try {
             Integer.parseInt(string);
@@ -160,5 +142,19 @@ public abstract class BaseHttpHandler {
         } catch (NumberFormatException e) {
             return false;
         }
+    }
+
+    protected String readRequestBody(HttpExchange exchange) throws IOException {
+        InputStream inputStream = exchange.getRequestBody();
+        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    }
+
+    protected int getRequestId(HttpExchange exchange) throws IOException {
+        return Integer.parseInt(exchange.getRequestURI().getPath().split("/")[2]);
+    }
+
+    protected boolean isTimeInvalid(Task task) {
+        return task.getStartTime() == null && !task.getDurationTime().isZero() ||
+                task.getStartTime() != null && task.getDurationTime().isZero();
     }
 }

@@ -3,7 +3,6 @@ package server;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import manager.TaskManager;
-import model.ApiResponse;
 import model.Endpoint;
 
 import java.io.IOException;
@@ -20,7 +19,7 @@ public class HistoryHandler extends BaseHttpHandler implements HttpHandler {
 
         switch (endpoint) {
             case GET_HISTORY -> handleGetHistory(exchange); // GET /history
-            default -> sendNotFound(exchange, gson.toJson(new ApiResponse(404, "Endpoint not found")));
+            default -> sendNotFound(exchange);
         }
     }
 
