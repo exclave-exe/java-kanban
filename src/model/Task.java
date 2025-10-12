@@ -11,7 +11,7 @@ public class Task {
     protected String description;
     protected Status status;
     protected LocalDateTime startTime;
-    protected Long duration = 0L;
+    protected long duration = 0L;
 
     public Task(int id, String name, String description, Status status) {
         this.id = id;

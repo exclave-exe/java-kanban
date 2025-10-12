@@ -1,5 +1,6 @@
 package manager;
 
+import exceptions.NotFoundException;
 import model.Epic;
 import model.Status;
 import model.Subtask;
@@ -40,10 +41,13 @@ public abstract class TaskManagerTest<T extends TaskManager> {
     }
 
     @Test
-    void shouldReturnNullIfTasksDoesNotExist() {
-        assertNull(manager.getTask(999), "Если задачи нет, метод должен вернуть null");
-        assertNull(manager.getEpic(999), "Если задачи нет, метод должен вернуть null");
-        assertNull(manager.getSubtask(999), "Если задачи нет, метод должен вернуть null");
+    void shouldThrowNotFoundExceptionIfTasksDoesNotExist() {
+        assertThrows(NotFoundException.class, () -> manager.getTask(999),
+                "Если задачи нет, метод должен бросить NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getEpic(999),
+                "Если эпика нет, метод должен бросить NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(999),
+                "Если подзадачи нет, метод должен бросить NotFoundException");
     }
 
     @Test
@@ -70,6 +74,7 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         assertTrue(allSubtasks.contains(subtask2), "Список подзадач должен содержать subtask2");
     }
 
+    @Test
     void shouldReturnCopyOfTaskLists() {
         Task task1 = manager.createTask("task1", "desc1", Status.NEW);
         Task task2 = manager.createTask("task2", "desc2", Status.NEW);
@@ -183,7 +188,6 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         assertEquals(Status.NEW, subtask.getStatus(), "Статус Subtask должен обновляться на NEW");
     }
 
-
     @Test
     void shouldCreateEntitiesWithCorrectFields() {
         Task task = manager.createTask("Task1", "Desc Task", Status.NEW);
@@ -227,7 +231,8 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         boolean result = manager.deleteTask(task.getId());
 
         assertTrue(result, "Метод должен вернуть true при успешном удалении");
-        assertNull(manager.getTask(task.getId()), "Удалённая задача не должна возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getTask(task.getId()),
+                "Удалённая задача должна бросать NotFoundException");
         assertFalse(manager.getAllTasks().contains(task), "Возвращаемый список не должен содержать Task");
         assertFalse(manager.deleteTask(task.getId()), "Повторное удаление должно вернуть false");
     }
@@ -241,10 +246,13 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         boolean result = manager.deleteEpic(epic.getId());
 
         assertTrue(result, "Метод должен вернуть true при успешном удалении эпика");
-        assertNull(manager.getEpic(epic.getId()), "Удалённый эпик не должен возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getEpic(epic.getId()),
+                "Удалённый эпик должен бросать NotFoundException");
         assertFalse(manager.getAllEpics().contains(epic), "Возвращаемый список не должен содержать Epic");
-        assertNull(manager.getSubtask(sub1.getId()), "При удалении Epic его Subtask не должен возвращаться по id");
-        assertNull(manager.getSubtask(sub2.getId()), "При удалении Epic его Subtask не должен возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub1.getId()),
+                "При удалении Epic его Subtask должен бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub2.getId()),
+                "При удалении Epic его Subtask должен бросать NotFoundException");
         assertFalse(manager.getAllSubtasks().contains(sub1), "Возвращаемый список не должен содержать sub1");
         assertFalse(manager.getAllSubtasks().contains(sub2), "Возвращаемый список не должен содержать sub2");
         assertFalse(manager.deleteEpic(epic.getId()), "Повторное удаление должно вернуть false");
@@ -258,7 +266,8 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         boolean result = manager.deleteSubtask(sub.getId());
 
         assertTrue(result, "Метод должен вернуть true при успешном удалении Subtask");
-        assertNull(manager.getSubtask(sub.getId()), "Удалённый Subtask не должен возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub.getId()),
+                "Удалённый Subtask должен бросать NotFoundException");
         assertFalse(manager.getAllSubtasks().contains(sub), "Возвращаемый список не должен содержать удалённый Subtask");
         assertFalse(epic.getSubtasksId().contains(sub.getId()), "Epic не должен хранить id удалённого Subtask");
         assertFalse(manager.deleteSubtask(sub.getId()), "Повторное удаление должно вернуть false");
@@ -272,8 +281,10 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         manager.deleteAllTasks();
 
         assertTrue(manager.getAllTasks().isEmpty(), "После удаления всех задач список должен быть пустым");
-        assertNull(manager.getTask(task1.getId()), "Удалённая задача не должна возвращаться по id");
-        assertNull(manager.getTask(task2.getId()), "Удалённая задача не должна возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getTask(task1.getId()),
+                "Удалённая задача должна бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getTask(task2.getId()),
+                "Удалённая задача должна бросать NotFoundException");
     }
 
     @Test
@@ -287,10 +298,14 @@ public abstract class TaskManagerTest<T extends TaskManager> {
 
         assertTrue(manager.getAllEpics().isEmpty(), "После удаления всех эпиков список должен быть пустым");
         assertTrue(manager.getAllSubtasks().isEmpty(), "При удалении всех эпиков должны удалиться и все подзадачи");
-        assertNull(manager.getEpic(epic1.getId()), "Удалённый Epic не должен возвращаться по id");
-        assertNull(manager.getEpic(epic2.getId()), "Удалённый Epic не должен возвращаться по id");
-        assertNull(manager.getSubtask(sub1.getId()), "Subtask, связанный с Epic, должен удаляться вместе с ним");
-        assertNull(manager.getSubtask(sub2.getId()), "Subtask, связанный с Epic, должен удаляться вместе с ним");
+        assertThrows(NotFoundException.class, () -> manager.getEpic(epic1.getId()),
+                "Удалённый Epic должен бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getEpic(epic2.getId()),
+                "Удалённый Epic должен бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub1.getId()),
+                "Subtask, связанный с Epic, должен бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub2.getId()),
+                "Subtask, связанный с Epic, должен бросать NotFoundException");
     }
 
     @Test
@@ -302,9 +317,11 @@ public abstract class TaskManagerTest<T extends TaskManager> {
         manager.deleteAllSubtasks();
 
         assertTrue(manager.getAllSubtasks().isEmpty(), "После удаления всех подзадач список Subtask должен быть пустым");
-        assertNotNull(manager.getEpic(epic.getId()), "Epic должен остаться после удаления всех Subtask");
+        assertDoesNotThrow(() -> manager.getEpic(epic.getId()), "Epic должен остаться после удаления всех Subtask");
         assertTrue(epic.getSubtasksId().isEmpty(), "Список id подзадач в Epic должен быть пустым после удаления всех Subtask");
-        assertNull(manager.getSubtask(sub1.getId()), "Удалённый Subtask не должен возвращаться по id");
-        assertNull(manager.getSubtask(sub2.getId()), "Удалённый Subtask не должен возвращаться по id");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub1.getId()),
+                "Удалённый Subtask должен бросать NotFoundException");
+        assertThrows(NotFoundException.class, () -> manager.getSubtask(sub2.getId()),
+                "Удалённый Subtask должен бросать NotFoundException");
     }
 }

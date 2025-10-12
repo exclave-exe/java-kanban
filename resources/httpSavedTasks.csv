@@ -1,0 +1,5 @@
+id,type,name,status,description,epic,startTime,duration,endTime
+4,TASK,task_1,NEW,description,None,17.06.2000 02:00:02,60,17.06.2000 03:00:02
+1,EPIC,Купить еду,IN_PROGRESS,Надо сходить в магазин,None,16.06.2000 00:00:00,60,16.06.2000 01:00:00
+2,SUBTASK,Молоко,NEW,надо купить,1,16.06.2000 00:00:00,30,16.06.2000 00:30:00
+3,SUBTASK,Молоко,DONE,надо купить,1,16.06.2000 00:31:00,29,16.06.2000 01:00:00
